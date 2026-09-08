@@ -54,6 +54,66 @@ export interface AdsConfig {
   ads: AdItem[];
 }
 
+export interface SiteSocialLinks {
+  twitter?: string;
+  linkedin?: string;
+  github?: string;
+  email?: string;
+}
+
+export interface SiteCustomization {
+  siteName: string;
+  headerTagline: string;
+  headerLogoUrl: string;
+  headerLogoType: "icon" | "image";
+  headerLogoIconLetter: string;
+  footerLogoUrl: string;
+  footerDescription: string;
+  footerCopyright: string;
+  footerDisclaimer: string;
+  socialLinks: SiteSocialLinks;
+  adsTxtContent: string;
+  adsensePublisherId: string;
+  adsenseAutoAdsEnabled: boolean;
+  googleSiteVerification: string;
+  bingSiteVerification: string;
+  customHeadCode: string;
+  customBodyCode: string;
+  updatedAt?: string;
+}
+
+export const DEFAULT_SITE_CUSTOMIZATION: SiteCustomization = {
+  siteName: "RankLynx",
+  headerTagline: "Pro SEO & Link Suite",
+  headerLogoUrl: "",
+  headerLogoType: "icon",
+  headerLogoIconLetter: "R",
+  footerLogoUrl: "",
+  footerDescription: "All-in-one professional link generator, bulk URL opener, protocol cleaner, domain metrics inspector, and editorial SEO intelligence suite for digital webmasters.",
+  footerCopyright: `© ${new Date().getFullYear()} RankLynx. Free Professional SEO Toolkit.`,
+  footerDisclaimer: "Designed for SEO specialists, outreach teams & digital webmasters.",
+  socialLinks: {
+    twitter: "https://twitter.com",
+    linkedin: "https://linkedin.com",
+    github: "https://github.com",
+    email: "contact@ranklynx.com",
+  },
+  adsTxtContent: `# Google AdSense ads.txt
+# Replace with your own publisher ID (e.g. pub-1234567890123456)
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+
+# Example Additional Ad Networks (Ezoic, Mediavine, PropellerAds, etc.)
+# ezoic.com, 00000, DIRECT
+# mediavine.com, 00000, DIRECT
+`,
+  adsensePublisherId: "",
+  adsenseAutoAdsEnabled: false,
+  googleSiteVerification: "",
+  bingSiteVerification: "",
+  customHeadCode: "",
+  customBodyCode: "",
+};
+
 export interface User {
   id: string;
   name: string;

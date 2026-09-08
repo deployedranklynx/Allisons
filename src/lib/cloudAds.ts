@@ -7,9 +7,12 @@ import {
   saveFirebaseAds,
   trackFirebaseAdClick,
   incrementFirebaseAdImpressions,
+  ensureFirebaseSiteSettingsInitialized,
+  getFirebaseSiteSettings,
+  saveFirebaseSiteSettings,
   AdDoc,
 } from "./firebase";
-import { AdItem, AdPlacement, AdType } from "../types";
+import { AdItem, AdPlacement, AdType, SiteCustomization, DEFAULT_SITE_CUSTOMIZATION } from "../types";
 
 // Convert AdDoc to AdItem
 function toAdItem(doc: AdDoc): AdItem {
@@ -142,3 +145,43 @@ export async function saveCloudAdminConfig(params: {
     return false;
   }
 }
+
+// Fetch complete site customization & settings (Header, Footer, ads.txt, AdSense code)
+export async function fetchCloudSiteSettings(): Promise<SiteCustomization> {
+  try {
+    await ensureFirebaseSiteSettingsInitialized();
+    const settings = await getFirebaseSiteSettings();
+    return settings;
+  } catch (err) {
+    console.error("fetchCloudSiteSettings error:", err);
+    return DEFAULT_SITE_CUSTOMIZATION;
+  }
+}
+
+// Save site customization & settings to Firebase Cloud
+export async function saveCloudSiteSettings(
+  settings: Partial<SiteCustomization>
+): Promise<boolean> {
+  try {
+    await ensureFirebaseSiteSettingsInitialized();
+    const success = await saveFirebaseSiteSettings(settings);
+    // Also sync to local backend if available
+    try {
+      await fetch("/api/admin/site-settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer cloud_admin_token",
+        },
+        body: JSON.stringify(settings),
+      });
+    } catch {
+      // Non-blocking local sync
+    }
+    return success;
+  } catch (err) {
+    console.error("saveCloudSiteSettings error:", err);
+    return false;
+  }
+}
+

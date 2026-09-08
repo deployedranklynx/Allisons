@@ -1,5 +1,5 @@
 import React from "react";
-import { ActiveTab, User, AuthModalMode } from "../types";
+import { ActiveTab, User, AuthModalMode, SiteCustomization } from "../types";
 import { Menu, Home, User as UserIcon, Sparkles, BookOpen } from "lucide-react";
 
 interface HeaderProps {
@@ -8,6 +8,7 @@ interface HeaderProps {
   onOpenSidebar: () => void;
   user?: User | null;
   onOpenAuth?: (mode?: AuthModalMode) => void;
+  siteSettings?: SiteCustomization;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSidebar,
   user,
   onOpenAuth,
+  siteSettings,
 }) => {
   const getTabTitle = (tab: ActiveTab) => {
     switch (tab) {
@@ -51,6 +53,21 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Menu className="w-5 h-5" />
         </button>
+
+        {/* Mobile Mini Logo */}
+        <div className="lg:hidden flex items-center shrink-0">
+          {siteSettings?.headerLogoType === "image" && siteSettings.headerLogoUrl ? (
+            <img
+              src={siteSettings.headerLogoUrl}
+              alt={siteSettings.siteName || "Logo"}
+              className="h-6 max-w-[80px] object-contain rounded"
+            />
+          ) : (
+            <div className="w-6 h-6 bg-[#0984E3] rounded flex items-center justify-center text-white font-bold text-xs shadow-xs">
+              {siteSettings?.headerLogoIconLetter || "R"}
+            </div>
+          )}
+        </div>
 
         {/* Title */}
         <h2 className="text-base sm:text-lg font-semibold text-[#2D3436] truncate">

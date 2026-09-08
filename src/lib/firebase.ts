@@ -11,7 +11,7 @@ import {
   increment,
 } from "firebase/firestore";
 import { firebaseConfig } from "./firebaseConfig";
-import { BlogPost } from "../types";
+import { BlogPost, SiteCustomization, DEFAULT_SITE_CUSTOMIZATION } from "../types";
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -445,4 +445,61 @@ export async function incrementFirebaseBlogViews(postId: string) {
     // Non-blocking
   }
 }
+
+// ---------------------------------------------------------------------------
+// SITE SETTINGS, BRANDING, FOOTER & ADS.TXT / ADSENSE VERIFICATION
+// ---------------------------------------------------------------------------
+
+export async function ensureFirebaseSiteSettingsInitialized() {
+  try {
+    const docRef = doc(db, "siteSettings", "global");
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) {
+      await setDoc(docRef, {
+        ...DEFAULT_SITE_CUSTOMIZATION,
+        updatedAt: new Date().toISOString(),
+      });
+      console.log("[Firebase Cloud] Initialized default site branding and settings.");
+    }
+  } catch (err) {
+    console.error("[Firebase Cloud] ensureFirebaseSiteSettingsInitialized error:", err);
+  }
+}
+
+export async function getFirebaseSiteSettings(): Promise<SiteCustomization> {
+  try {
+    const docRef = doc(db, "siteSettings", "global");
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return {
+        ...DEFAULT_SITE_CUSTOMIZATION,
+        ...(snap.data() as Partial<SiteCustomization>),
+      };
+    }
+  } catch (err) {
+    console.error("[Firebase Cloud] getFirebaseSiteSettings error:", err);
+  }
+  return DEFAULT_SITE_CUSTOMIZATION;
+}
+
+export async function saveFirebaseSiteSettings(
+  settings: Partial<SiteCustomization>
+): Promise<boolean> {
+  try {
+    const docRef = doc(db, "siteSettings", "global");
+    await setDoc(
+      docRef,
+      {
+        ...settings,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.error("[Firebase Cloud] saveFirebaseSiteSettings error:", err);
+    return false;
+  }
+}
+
 

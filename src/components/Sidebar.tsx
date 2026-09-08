@@ -1,5 +1,5 @@
 import React from "react";
-import { ActiveTab, AdItem } from "../types";
+import { ActiveTab, AdItem, SiteCustomization } from "../types";
 import { AdBanner } from "./AdBanner";
 import {
   Home,
@@ -19,6 +19,7 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   ads?: AdItem[];
+  siteSettings?: SiteCustomization;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -27,6 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
   ads = [],
+  siteSettings,
 }) => {
   const navSections = [
     {
@@ -122,17 +124,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Brand Header */}
         <div className="p-6 border-b border-[#E9ECEF] flex items-center justify-between">
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-[#0984E3] rounded flex items-center justify-center text-white font-bold text-sm shadow-xs">
-                A
-              </div>
-              <h1 className="text-xl font-bold tracking-tight text-[#2D3436]">
-                ASA Tool
+              {siteSettings?.headerLogoType === "image" && siteSettings.headerLogoUrl ? (
+                <img
+                  src={siteSettings.headerLogoUrl}
+                  alt={siteSettings.siteName || "Logo"}
+                  className="h-8 max-w-[120px] object-contain rounded"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="w-8 h-8 bg-[#0984E3] rounded flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0">
+                  {siteSettings?.headerLogoIconLetter || "R"}
+                </div>
+              )}
+              <h1 className="text-xl font-bold tracking-tight text-[#2D3436] truncate">
+                {siteSettings?.siteName || "RankLynx"}
               </h1>
             </div>
-            <p className="text-[10px] uppercase tracking-widest text-[#B2BEC3] mt-1 font-semibold">
-              Pro SEO Optimizer
+            <p className="text-[10px] uppercase tracking-widest text-[#B2BEC3] mt-1 font-semibold truncate">
+              {siteSettings?.headerTagline || "Pro SEO Optimizer"}
             </p>
           </div>
 

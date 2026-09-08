@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { ActiveTab, User, AuthModalMode, AdItem } from "../types";
+import { ActiveTab, User, AuthModalMode, AdItem, SiteCustomization, DEFAULT_SITE_CUSTOMIZATION } from "../types";
 import { AdBanner } from "./AdBanner";
+import { Footer } from "./Footer";
 import {
   Link2,
   Scissors,
@@ -26,6 +27,7 @@ interface LandingPageProps {
   user?: User | null;
   onOpenAuth?: (mode?: AuthModalMode) => void;
   ads?: AdItem[];
+  siteSettings?: SiteCustomization;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -34,6 +36,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   user,
   onOpenAuth,
   ads = [],
+  siteSettings,
 }) => {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
@@ -162,15 +165,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0] shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#0984E3] flex items-center justify-center text-white font-black text-lg shadow-sm">
-              A
-            </div>
+            {siteSettings?.headerLogoType === "image" && siteSettings.headerLogoUrl ? (
+              <img
+                src={siteSettings.headerLogoUrl}
+                alt={siteSettings.siteName || "Logo"}
+                className="h-10 max-w-[150px] object-contain rounded-lg shadow-xs"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                }}
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-lg bg-[#0984E3] flex items-center justify-center text-white font-black text-lg shadow-sm">
+                {siteSettings?.headerLogoIconLetter || "R"}
+              </div>
+            )}
             <div>
               <span className="text-xl font-bold tracking-tight text-[#0F172A] block leading-none">
-                ASA Tool
+                {siteSettings?.siteName || "RankLynx"}
               </span>
               <span className="text-[11px] font-semibold text-[#64748B] tracking-wider uppercase">
-                All-in-One SEO Suite
+                {siteSettings?.headerTagline || "All-in-One SEO Suite"}
               </span>
             </div>
           </div>
@@ -726,79 +740,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
-      {/* Classic Minimalist Footer */}
-      <footer className="bg-white border-t border-[#E2E8F0] py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-[#F1F5F9]">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded bg-[#0984E3] flex items-center justify-center text-white font-bold text-sm">
-                A
-              </div>
-              <span className="font-bold text-base text-[#0F172A]">
-                ASA SEO Suite
-              </span>
-              <span className="text-xs text-[#64748B]">| Pro Optimizer</span>
-            </div>
-
-            {/* Tool Jump Links in Footer */}
-            <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-[#475569]">
-              <button
-                onClick={() => onSelectTab("link-generator")}
-                className="hover:text-[#0984E3] transition-colors cursor-pointer"
-              >
-                Hyperlink Suite
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => onSelectTab("bulk-opener")}
-                className="hover:text-[#0984E3] transition-colors cursor-pointer"
-              >
-                Bulk URL Opener
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => onSelectTab("url-cleaner")}
-                className="hover:text-[#0984E3] transition-colors cursor-pointer"
-              >
-                Protocol Cleaner
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => onSelectTab("domain-metrics")}
-                className="hover:text-[#0984E3] transition-colors cursor-pointer"
-              >
-                Domain Metrics
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => onSelectTab("keyword-difficulty")}
-                className="hover:text-[#0984E3] transition-colors cursor-pointer"
-              >
-                Keyword Difficulty
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => onSelectTab("rank-tracker")}
-                className="hover:text-[#0984E3] transition-colors cursor-pointer"
-              >
-                Rank Tracker
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => onSelectTab("blog")}
-                className="hover:text-[#0984E3] transition-colors cursor-pointer font-bold text-[#0984E3]"
-              >
-                Editorial Blog
-              </button>
-            </div>
-          </div>
-
-          <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#94A3B8]">
-            <p>© {new Date().getFullYear()} ASA Tool. Free Professional SEO Toolkit.</p>
-            <p>Designed for SEO specialists, outreach teams & digital webmasters.</p>
-          </div>
-        </div>
-      </footer>
+      {/* Dynamic Minimalist Footer */}
+      <Footer
+        onSelectTab={onSelectTab}
+        siteSettings={siteSettings || DEFAULT_SITE_CUSTOMIZATION}
+      />
     </div>
   );
 };
