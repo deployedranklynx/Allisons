@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "adminSettings": {
+      "title": "Admin Settings",
+      "description": "Global admin passkey and settings",
+      "type": "object",
+      "properties": {
+        "adminPasskey": { "type": "string" },
+        "globalEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "ads": {
+      "title": "Advertisements",
+      "description": "Ad slots and campaigns",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "placement": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "targetUrl": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "buttonText": { "type": "string" },
+        "badgeText": { "type": "string" },
+        "customHtml": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "impressions": { "type": "number" },
+        "clicks": { "type": "number" }
+      }
+    },
+    "users": {
+      "title": "Registered Users",
+      "description": "User accounts for auth and future pro tiers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "plan": { "type": "string" },
+        "isEarlyAdopter": { "type": "boolean" },
+        "interestedInPro": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      }
+    }
+  }
+}

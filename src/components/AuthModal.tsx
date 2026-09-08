@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { User, AuthModalMode } from "../types";
+import { saveFirebaseUser } from "../lib/firebase";
 import {
   X,
   User as UserIcon,
@@ -59,6 +60,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onUserChange(data.user);
         setMode("profile");
         setSuccessMsg("Account created! You now have Early Adopter Free Tier access.");
+        // Persist to Firebase Cloud
+        saveFirebaseUser(data.user).catch(() => {});
         setTimeout(() => setSuccessMsg(null), 4000);
       } else {
         setErrorMsg(data.error || "Failed to create account.");
@@ -147,6 +150,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const updated = { ...user, interestedInPro: true };
         localStorage.setItem("ranklynx_user", JSON.stringify(updated));
         onUserChange(updated);
+        // Persist reservation interest to Firebase Cloud
+        saveFirebaseUser(updated).catch(() => {});
       }
     } catch {}
   };

@@ -17,6 +17,7 @@ import { RankTracker } from "./components/RankTracker";
 import { AdBanner } from "./components/AdBanner";
 import { AdminAdsManager } from "./components/AdminAdsManager";
 import { AuthModal } from "./components/AuthModal";
+import { fetchCloudActiveAds } from "./lib/cloudAds";
 
 // Map URL strings/aliases to canonical tabs
 function resolveTab(val: string): ActiveTab | null {
@@ -127,9 +128,25 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>("signup");
 
-  // Fetch active ads from public API
+  // Fetch active ads from Firebase Cloud with local server fallback
   const fetchActiveAds = useCallback(async () => {
     try {
+      // 1. Primary: Firebase Cloud Firestore
+      const cloudRes = await fetchCloudActiveAds();
+      if (cloudRes && Array.isArray(cloudRes.ads)) {
+        if (cloudRes.globalEnabled) {
+          setAds(cloudRes.ads);
+        } else {
+          setAds([]);
+        }
+        return;
+      }
+    } catch {
+      // Fallback below
+    }
+
+    try {
+      // 2. Fallback: Internal server API
       const res = await fetch("/api/ads");
       if (res.ok) {
         const data = await res.json();

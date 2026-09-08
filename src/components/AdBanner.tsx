@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { AdItem, AdPlacement } from "../types";
 import { ExternalLink, Sparkles, X } from "lucide-react";
+import { recordCloudAdClick } from "../lib/cloudAds";
 
 interface AdBannerProps {
   placement: AdPlacement;
@@ -56,7 +57,10 @@ export const AdBanner: React.FC<AdBannerProps> = ({
   if (!ad) return null;
 
   const handleAdClick = () => {
-    // Fire click tracking beacon
+    // 1. Firebase Cloud click tracking
+    recordCloudAdClick(ad.id);
+
+    // 2. Server click tracking beacon
     try {
       fetch("/api/ads/track-click", {
         method: "POST",
