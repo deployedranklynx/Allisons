@@ -4,12 +4,14 @@ import {
   doc,
   getDoc,
   setDoc,
+  deleteDoc,
   collection,
   getDocs,
   updateDoc,
   increment,
 } from "firebase/firestore";
 import { firebaseConfig } from "./firebaseConfig";
+import { BlogPost } from "../types";
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -245,3 +247,202 @@ export async function saveFirebaseUser(userData: any) {
     return false;
   }
 }
+
+// 7. Initial Classical Editorial Blog Posts
+export const DEFAULT_INITIAL_BLOGS: BlogPost[] = [
+  {
+    id: "blog-backlink-playbook-2026",
+    slug: "high-authority-backlink-playbook-2026",
+    title: "The Anatomy of High-Authority Backlinks: A 2026 Webmaster Playbook",
+    excerpt: "Discover the exact signals search engine algorithms prioritize when evaluating link equity, referral trust, and topical relevance in the era of automated content.",
+    content: `<h2>The Evolution of Search Engine Link Equity</h2>
+<p>For more than two decades, hyperlinks have served as the fundamental democratic currency of the World Wide Web. However, modern search algorithm updates have radically altered how equity flows between domains. Raw PageRank quantity has yielded to topical context, semantic anchor balance, and genuine user engagement signals.</p>
+
+<blockquote>"A single contextual backlink from a deeply relevant, editorially vetted publication delivers orders of magnitude more ranking momentum than thousands of automated directory entries."</blockquote>
+
+<h3>1. The Three Pillars of Link Trust</h3>
+<p>When auditing backlink acquisitions or planning outreach campaigns, seasoned SEO directors evaluate three deterministic vectors:</p>
+<ul>
+  <li><strong>Topical Proximity:</strong> Does the linking domain regularly produce authoritative content within your niche, or is it an artificial general blog network?</li>
+  <li><strong>Semantic Anchor Variance:</strong> Are your incoming hyperlinks distributed naturally across branded terms, partial matches, exact matches, and raw URLs?</li>
+  <li><strong>Editorial Placement:</strong> Does the link reside inside the core editorial body where real readers click, or is it isolated in footers, author bios, or sidebars?</li>
+</ul>
+
+<h3>2. The Danger of Anchor Over-Optimization</h3>
+<p>One of the most persistent pitfalls in technical SEO is aggressive exact-match anchor text targeting. Search engines look for organic distribution curves. A healthy profile typically exhibits:</p>
+<ul>
+  <li><strong>50% - 65% Branded Anchors:</strong> Domain name, brand name, and proprietary product names.</li>
+  <li><strong>20% - 25% URL & Generic Anchors:</strong> Full target URL, "visit website", "source", or "learn more".</li>
+  <li><strong>10% - 15% Partial Match / Topic LSI:</strong> "best link building tools", "SEO audit checklist".</li>
+  <li><strong>Under 5% Exact Match:</strong> Monopolizing exact commercial terms invites algorithmic dampening.</li>
+</ul>
+
+<h3>3. Actionable Workflow for Webmasters</h3>
+<p>To audit and clean your domain's incoming link equity, always combine automated bulk opening for manual visual inspection with parameter stripping to isolate clean target canonicals. Consistent hygiene protects against toxic link penalties and ensures long-term index resilience.</p>`,
+    featuredImage: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
+    author: {
+      name: "Arthur Vance",
+      role: "Principal Technical SEO",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
+    },
+    category: "Link Building",
+    tags: ["Backlinks", "Algorithms", "Anchor Text", "SERP"],
+    readTime: "7 min read",
+    status: "published",
+    publishedAt: "2026-03-01T10:00:00Z",
+    updatedAt: "2026-03-01T10:00:00Z",
+    views: 842,
+  },
+  {
+    id: "blog-anchor-text-diversity",
+    slug: "anchor-text-diversity-matrix",
+    title: "Anchor Text Diversity: How to Balance Exact Match and Branded Links",
+    excerpt: "A mathematical framework for calculating safe link ratios, avoiding algorithmic filters, and maximizing topical authority across complex subfolder architectures.",
+    content: `<h2>Understanding Algorithmic Anchor Dampening</h2>
+<p>Algorithmic filters such as Google Penguin and subsequent core spam updates are specifically engineered to identify non-random link creation. When a brand's referring domains suddenly spike with 80% commercial keyword anchors, statistical anomaly detectors trigger penalty dampening.</p>
+
+<h3>The Golden Ratio of Healthy Link Profiles</h3>
+<p>By studying over 100,000 top-ranking URLs across competitive finance, software, and healthcare niches, clear patterns emerge regarding sustainable anchor distributions:</p>
+
+<p>Topical relevance must be demonstrated through the surrounding contextual sentence rather than forced keywords inside the <code>&lt;a href&gt;</code> tag itself. Search engines now parse surrounding paragraph semantics with advanced NLP models.</p>
+
+<h3>Recommended Audit Checklist</h3>
+<ol>
+  <li>Export all active backlinks using your preferred crawler.</li>
+  <li>Categorize anchors into Branded, URL, Generic, Compound, and Exact.</li>
+  <li>If exact match exceeds 8%, immediately balance future outreach with brand and navigational citations.</li>
+  <li>Verify that your target URLs use clean canonical formats without trailing session tracking tags.</li>
+</ol>`,
+    featuredImage: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=1200&q=80",
+    author: {
+      name: "Elena Rostova",
+      role: "SEO Data Scientist",
+      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80",
+    },
+    category: "SEO Guides",
+    tags: ["Auditing", "Link Equity", "Data Science", "Penalties"],
+    readTime: "5 min read",
+    status: "published",
+    publishedAt: "2026-02-24T14:30:00Z",
+    updatedAt: "2026-02-24T14:30:00Z",
+    views: 615,
+  },
+  {
+    id: "blog-search-intent-topical-authority",
+    slug: "search-intent-and-topical-authority",
+    title: "Search Intent & Topical Authority: Winning High-Difficulty SERPs",
+    excerpt: "Why high Domain Rating alone fails to rank for commercial keywords without rigorous keyword difficulty analysis and intent alignment.",
+    content: `<h2>Beyond Raw Domain Authority</h2>
+<p>Too many SEO practitioners obsess over third-party metrics like Domain Rating (DR) or Domain Authority (DA) as if they were magical guarantees of top ranking. However, search engines evaluate topical depth on an entity level, not merely aggregate link count.</p>
+
+<blockquote>"A site with a DR of 35 that has answered every nuanced sub-question in a specific niche will routinely outrank a DR 80 general news aggregator for high-intent queries."</blockquote>
+
+<h3>Deconstructing Search Intent Archetypes</h3>
+<p>Before writing a single line of copy or building a single outreach link, you must categorize the SERP's prevailing intent into one of four buckets:</p>
+<ul>
+  <li><strong>Informational:</strong> Users seeking conceptual knowledge, definitions, or step-by-step educational walk-throughs.</li>
+  <li><strong>Investigational / Commercial:</strong> Users comparing tools, evaluating pros & cons, or reading curated roundups.</li>
+  <li><strong>Transactional:</strong> High purchase readiness, landing pages, interactive calculators, pricing tables.</li>
+  <li><strong>Navigational:</strong> Explicit brand search seeking direct portal logins.</li>
+</ul>
+
+<h3>Structuring Pillar & Cluster Hubs</h3>
+<p>To dominate competitive keywords, organize your content into a clean thematic hub: one comprehensive pillar guide linking internally to targeted supporting child articles. Internal linking distributes authority efficiently and signals complete topical mastery to search crawlers.</p>`,
+    featuredImage: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+    author: {
+      name: "Julian Sterling",
+      role: "Chief Content Strategist",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80",
+    },
+    category: "Technical SEO",
+    tags: ["Search Intent", "Keyword Difficulty", "Pillar Pages", "Content Strategy"],
+    readTime: "8 min read",
+    status: "published",
+    publishedAt: "2026-02-18T09:15:00Z",
+    updatedAt: "2026-02-18T09:15:00Z",
+    views: 928,
+  },
+];
+
+// Ensure initial blogs exist in Firestore
+export async function ensureFirebaseBlogsInitialized() {
+  try {
+    const blogsSnap = await getDocs(collection(db, "blogs"));
+    if (blogsSnap.empty) {
+      for (const blog of DEFAULT_INITIAL_BLOGS) {
+        await setDoc(doc(db, "blogs", blog.id), blog);
+      }
+      console.log("[Firebase Cloud] Initialized default blog articles in Firestore.");
+    }
+  } catch (err) {
+    console.error("[Firebase Cloud] ensureFirebaseBlogsInitialized error:", err);
+  }
+}
+
+// Fetch all blogs from Firestore (returns defaults if offline/empty)
+export async function getFirebaseBlogs(): Promise<BlogPost[]> {
+  try {
+    const blogsSnap = await getDocs(collection(db, "blogs"));
+    if (!blogsSnap.empty) {
+      const posts: BlogPost[] = [];
+      blogsSnap.forEach((docSnap) => {
+        posts.push(docSnap.data() as BlogPost);
+      });
+      // Sort newest first
+      return posts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    }
+  } catch (err) {
+    console.error("[Firebase Cloud] getFirebaseBlogs error:", err);
+  }
+  return DEFAULT_INITIAL_BLOGS;
+}
+
+// Fetch single blog post by slug or id
+export async function getFirebaseBlogBySlug(slug: string): Promise<BlogPost | null> {
+  try {
+    const all = await getFirebaseBlogs();
+    return all.find((p) => p.slug === slug || p.id === slug) || null;
+  } catch (err) {
+    console.error("[Firebase Cloud] getFirebaseBlogBySlug error:", err);
+  }
+  return DEFAULT_INITIAL_BLOGS.find((p) => p.slug === slug || p.id === slug) || null;
+}
+
+// Save or Update a blog post in Firestore
+export async function saveFirebaseBlogPost(post: BlogPost): Promise<boolean> {
+  try {
+    const docRef = doc(db, "blogs", post.id);
+    await setDoc(docRef, {
+      ...post,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    return true;
+  } catch (err) {
+    console.error("[Firebase Cloud] saveFirebaseBlogPost error:", err);
+    return false;
+  }
+}
+
+// Delete a blog post from Firestore
+export async function deleteFirebaseBlogPost(postId: string): Promise<boolean> {
+  try {
+    await deleteDoc(doc(db, "blogs", postId));
+    return true;
+  } catch (err) {
+    console.error("[Firebase Cloud] deleteFirebaseBlogPost error:", err);
+    return false;
+  }
+}
+
+// Increment blog views count in Firestore
+export async function incrementFirebaseBlogViews(postId: string) {
+  try {
+    const docRef = doc(db, "blogs", postId);
+    await updateDoc(docRef, {
+      views: increment(1),
+    });
+  } catch {
+    // Non-blocking
+  }
+}
+

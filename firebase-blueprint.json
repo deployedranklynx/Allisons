@@ -43,6 +43,29 @@
         "interestedInPro": { "type": "boolean" },
         "createdAt": { "type": "string" }
       }
+    },
+    "blogs": {
+      "title": "Blog Posts",
+      "description": "Editorial SEO articles and publications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "featuredImage": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorRole": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "category": { "type": "string" },
+        "tags": { "type": "array" },
+        "readTime": { "type": "string" },
+        "status": { "type": "string" },
+        "publishedAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "views": { "type": "number" }
+      }
     }
   }
 }

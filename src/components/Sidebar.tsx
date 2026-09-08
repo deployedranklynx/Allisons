@@ -10,6 +10,7 @@ import {
   Search,
   Globe2,
   X,
+  BookOpen,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -36,6 +37,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "Home / Overview",
           icon: Home,
           emoji: "🏠",
+        },
+      ],
+    },
+    {
+      group: "Editorial & Insights",
+      items: [
+        {
+          id: "blog" as ActiveTab,
+          label: "Classique Blog",
+          icon: BookOpen,
+          emoji: "📖",
         },
       ],
     },

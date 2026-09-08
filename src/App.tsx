@@ -16,6 +16,7 @@ import { KeywordDifficultyChecker } from "./components/KeywordDifficultyChecker"
 import { RankTracker } from "./components/RankTracker";
 import { AdBanner } from "./components/AdBanner";
 import { AdminAdsManager } from "./components/AdminAdsManager";
+import { BlogSection } from "./components/BlogSection";
 import { AuthModal } from "./components/AuthModal";
 import { fetchCloudActiveAds } from "./lib/cloudAds";
 
@@ -55,6 +56,9 @@ function resolveTab(val: string): ActiveTab | null {
   }
   if (["rank-tracker", "rank", "rankings", "serp-tracker", "tracker", "serp"].includes(clean)) {
     return "rank-tracker";
+  }
+  if (["blog", "blogs", "articles", "article", "journal", "editorial", "guides", "guide"].includes(clean)) {
+    return "blog";
   }
 
   return null;
@@ -107,6 +111,7 @@ const TAB_TITLES: Record<ActiveTab, string> = {
   "keyword-difficulty": "Keyword Difficulty & Search Intent - All-in-One SEO Tool",
   "rank-tracker": "Worldwide SERP & Rank Tracker - All-in-One SEO Tool",
   "admin-ads": "Ad Manager & Sponsor Control - All-in-One SEO Tool",
+  blog: "Classique Editorial Journal & SEO Guides - All-in-One SEO Tool",
 };
 
 export default function App() {
@@ -296,6 +301,12 @@ export default function App() {
             {activeTab === "domain-metrics" && <DomainMetricsChecker />}
             {activeTab === "keyword-difficulty" && <KeywordDifficultyChecker />}
             {activeTab === "rank-tracker" && <RankTracker />}
+            {activeTab === "blog" && (
+              <BlogSection
+                ads={ads}
+                onOpenApp={() => handleSelectTab("link-generator", true)}
+              />
+            )}
 
             {/* In-tool Sponsor / Ad Banner */}
             <AdBanner placement="tool_banner" ads={ads} className="mt-8" />

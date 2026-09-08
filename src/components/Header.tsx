@@ -1,6 +1,6 @@
 import React from "react";
 import { ActiveTab, User, AuthModalMode } from "../types";
-import { Menu, Home, User as UserIcon, Sparkles } from "lucide-react";
+import { Menu, Home, User as UserIcon, Sparkles, BookOpen } from "lucide-react";
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -21,6 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
     switch (tab) {
       case "landing":
         return "Home & Toolkit Overview";
+      case "blog":
+        return "Editorial Journal & Tactical SEO Guides";
       case "link-generator":
         return "Bulk Hyperlink & URL Suite";
       case "bulk-opener":
@@ -87,6 +89,15 @@ export const Header: React.FC<HeaderProps> = ({
               className="px-3 py-1 text-xs border border-[#E9ECEF] rounded-md hover:bg-gray-50 text-[#636E72] transition-colors"
             >
               Check Moz/Ahrefs
+            </button>
+          )}
+          {activeTab !== "blog" && (
+            <button
+              onClick={() => setActiveTab("blog")}
+              className="px-3 py-1 text-xs border border-blue-200 bg-blue-50/60 hover:bg-blue-100/70 rounded-md text-[#0984E3] font-semibold transition-colors flex items-center gap-1.5"
+            >
+              <BookOpen className="w-3 h-3 text-[#0984E3]" />
+              <span>Blog & Guides</span>
             </button>
           )}
         </div>

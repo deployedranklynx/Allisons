@@ -17,6 +17,7 @@ import {
   Layers,
   Sparkles,
   User as UserIcon,
+  BookOpen,
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -219,6 +220,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             >
               FAQ
             </a>
+            <button
+              onClick={() => onSelectTab("blog")}
+              className="hover:text-[#0984E3] transition-colors cursor-pointer flex items-center gap-1 font-semibold text-[#0984E3]"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Editorial Blog</span>
+            </button>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -570,6 +578,134 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
+      {/* Classique Blog Editorial Section */}
+      <section className="py-20 bg-white border-t border-[#E2E8F0]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F1F5F9] text-xs font-semibold text-[#0984E3] mb-3">
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Classique Editorial & Guides</span>
+              </div>
+              <h2 className="text-3xl font-extrabold tracking-tight text-[#0F172A]">
+                Tactical SEO Masterclasses & Insights
+              </h2>
+              <p className="mt-2 text-base text-[#64748B] max-w-2xl">
+                Expert deep-dives on enterprise link velocity, protocol hygiene, anchor ratio balance, and search intent intelligence.
+              </p>
+            </div>
+            <button
+              onClick={() => onSelectTab("blog")}
+              className="px-5 py-2.5 border border-[#E2E8F0] hover:border-[#0984E3] hover:text-[#0984E3] rounded-lg text-xs font-bold text-[#0F172A] flex items-center gap-2 transition-all cursor-pointer shrink-0 self-start sm:self-auto"
+            >
+              <span>Explore Editorial Journal</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div
+              onClick={() => onSelectTab("blog")}
+              className="group bg-[#FAFAFA] border border-[#E2E8F0] rounded-xl overflow-hidden hover:border-[#0984E3]/40 hover:shadow-md transition-all cursor-pointer flex flex-col"
+            >
+              <div className="h-44 bg-slate-100 overflow-hidden relative">
+                <img
+                  src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80"
+                  alt="SEO Strategy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <span className="absolute top-3 left-3 px-2.5 py-1 bg-white/95 backdrop-blur-xs text-[11px] font-bold text-[#0984E3] rounded-md shadow-2xs">
+                  Link Building
+                </span>
+              </div>
+              <div className="p-6 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="text-[11px] text-[#64748B] font-medium mb-1.5">
+                    March 2025 • 6 min read
+                  </div>
+                  <h3 className="text-base font-bold text-[#0F172A] group-hover:text-[#0984E3] transition-colors line-clamp-2">
+                    The Modern Link Building Architecture: Anchor Text Distribution in 2025
+                  </h3>
+                  <p className="text-xs text-[#64748B] line-clamp-2 mt-2 leading-relaxed">
+                    How high-authority enterprise webmasters structure branded, exact-match, and partial-match anchor profiles safely.
+                  </p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-[#E2E8F0] flex items-center justify-between text-xs font-semibold text-[#0984E3]">
+                  <span>Read Article</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </div>
+
+            <div
+              onClick={() => onSelectTab("blog")}
+              className="group bg-[#FAFAFA] border border-[#E2E8F0] rounded-xl overflow-hidden hover:border-[#0984E3]/40 hover:shadow-md transition-all cursor-pointer flex flex-col"
+            >
+              <div className="h-44 bg-slate-100 overflow-hidden relative">
+                <img
+                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80"
+                  alt="Data Analytics"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <span className="absolute top-3 left-3 px-2.5 py-1 bg-white/95 backdrop-blur-xs text-[11px] font-bold text-emerald-600 rounded-md shadow-2xs">
+                  Technical SEO
+                </span>
+              </div>
+              <div className="p-6 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="text-[11px] text-[#64748B] font-medium mb-1.5">
+                    February 2025 • 8 min read
+                  </div>
+                  <h3 className="text-base font-bold text-[#0F172A] group-hover:text-[#0984E3] transition-colors line-clamp-2">
+                    Why Clean URLs & Canonical Normalization Drive Crawl Budget Efficiency
+                  </h3>
+                  <p className="text-xs text-[#64748B] line-clamp-2 mt-2 leading-relaxed">
+                    A deep dive into duplicate URL traps, tracking tag hygiene, and multi-protocol sanitization.
+                  </p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-[#E2E8F0] flex items-center justify-between text-xs font-semibold text-[#0984E3]">
+                  <span>Read Article</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </div>
+
+            <div
+              onClick={() => onSelectTab("blog")}
+              className="group bg-[#FAFAFA] border border-[#E2E8F0] rounded-xl overflow-hidden hover:border-[#0984E3]/40 hover:shadow-md transition-all cursor-pointer flex flex-col"
+            >
+              <div className="h-44 bg-slate-100 overflow-hidden relative">
+                <img
+                  src="https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=800&auto=format&fit=crop&q=80"
+                  alt="Domain Metrics"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <span className="absolute top-3 left-3 px-2.5 py-1 bg-white/95 backdrop-blur-xs text-[11px] font-bold text-amber-600 rounded-md shadow-2xs">
+                  Authority Analysis
+                </span>
+              </div>
+              <div className="p-6 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="text-[11px] text-[#64748B] font-medium mb-1.5">
+                    January 2025 • 5 min read
+                  </div>
+                  <h3 className="text-base font-bold text-[#0F172A] group-hover:text-[#0984E3] transition-colors line-clamp-2">
+                    Moz DA vs Ahrefs DR vs Semrush AS: What Really Correlates With Rank?
+                  </h3>
+                  <p className="text-xs text-[#64748B] line-clamp-2 mt-2 leading-relaxed">
+                    Analyzing historical SERP movements against the big 3 third-party domain authority metrics.
+                  </p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-[#E2E8F0] flex items-center justify-between text-xs font-semibold text-[#0984E3]">
+                  <span>Read Article</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Bottom Call to Action Banner */}
       <section className="py-16 bg-[#0F172A] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -646,6 +782,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 className="hover:text-[#0984E3] transition-colors cursor-pointer"
               >
                 Rank Tracker
+              </button>
+              <span>•</span>
+              <button
+                onClick={() => onSelectTab("blog")}
+                className="hover:text-[#0984E3] transition-colors cursor-pointer font-bold text-[#0984E3]"
+              >
+                Editorial Blog
               </button>
             </div>
           </div>

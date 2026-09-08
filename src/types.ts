@@ -1,5 +1,6 @@
 export type ActiveTab =
   | "landing"
+  | "blog"
   | "link-generator"
   | "url-cleaner"
   | "bulk-opener"
@@ -7,6 +8,27 @@ export type ActiveTab =
   | "keyword-difficulty"
   | "rank-tracker"
   | "admin-ads";
+
+export interface BlogPost {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string; // Rich text HTML
+  featuredImage: string;
+  author: {
+    name: string;
+    role?: string;
+    avatar?: string;
+  };
+  category: string;
+  tags: string[];
+  readTime: string;
+  status: "published" | "draft";
+  publishedAt: string;
+  updatedAt: string;
+  views: number;
+}
 
 export type AdPlacement = "top_banner" | "sidebar" | "tool_banner" | "footer_banner";
 export type AdType = "image_link" | "custom_html" | "native_text";

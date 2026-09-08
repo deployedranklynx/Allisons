@@ -25,7 +25,10 @@ import {
   Type,
   RefreshCw,
   Cloud,
+  BookOpen,
+  FileText,
 } from "lucide-react";
+import { AdminBlogManager } from "./AdminBlogManager";
 
 interface AdminAdsManagerProps {
   onReturnHome: () => void;
@@ -46,6 +49,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
   // Ads Config state
   const [globalEnabled, setGlobalEnabled] = useState<boolean>(true);
   const [ads, setAds] = useState<AdItem[]>([]);
+  const [adminPortalTab, setAdminPortalTab] = useState<"blog" | "ads" | "security">("blog");
   const [activePlacementTab, setActivePlacementTab] = useState<AdPlacement>("top_banner");
   const [adminPasskey, setAdminPasskey] = useState<string>("admin123");
   const [newPasskeyInput, setNewPasskeyInput] = useState<string>("");
@@ -346,22 +350,74 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
         </div>
       </header>
 
+      {/* Admin Section Tabs */}
+      <div className="bg-white border-b border-[#E9ECEF] px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto flex items-center gap-2 overflow-x-auto py-2.5">
+          <button
+            onClick={() => setAdminPortalTab("blog")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+              adminPortalTab === "blog"
+                ? "bg-[#0984E3] text-white shadow-xs"
+                : "text-[#636E72] hover:bg-gray-100"
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Classique Blog Editorial</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${adminPortalTab === "blog" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"}`}>
+              Live Editor
+            </span>
+          </button>
+
+          <button
+            onClick={() => setAdminPortalTab("ads")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+              adminPortalTab === "ads"
+                ? "bg-[#0984E3] text-white shadow-xs"
+                : "text-[#636E72] hover:bg-gray-100"
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Advertisements & Sponsors</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${adminPortalTab === "ads" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"}`}>
+              {ads.length} slots
+            </span>
+          </button>
+
+          <button
+            onClick={() => setAdminPortalTab("security")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+              adminPortalTab === "security"
+                ? "bg-[#0984E3] text-white shadow-xs"
+                : "text-[#636E72] hover:bg-gray-100"
+            }`}
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>Master Passkey & Security</span>
+          </button>
+        </div>
+      </div>
+
       <main className="max-w-6xl mx-auto px-4 sm:px-8 py-8 space-y-6">
+        {/* Render Blog Manager Tab */}
+        {adminPortalTab === "blog" && <AdminBlogManager />}
+
         {/* Alerts & Notifications */}
-        {saveSuccessMsg && (
+        {adminPortalTab !== "blog" && saveSuccessMsg && (
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-sm text-emerald-800 animate-fadeIn">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
             <span className="font-medium">{saveSuccessMsg}</span>
           </div>
         )}
 
-        {saveErrorMsg && (
+        {adminPortalTab !== "blog" && saveErrorMsg && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-sm text-red-800 animate-fadeIn">
             <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
             <span className="font-medium">{saveErrorMsg}</span>
           </div>
         )}
 
+        {adminPortalTab === "ads" && (
+          <>
         {/* Global Ads Master Switch Card & Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="md:col-span-2 bg-white border border-[#E9ECEF] rounded-xl p-5 shadow-xs flex items-center justify-between">
@@ -775,8 +831,11 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
             </div>
           )}
         </div>
+        </>
+        )}
 
         {/* Security & Admin Passkey Management */}
+        {adminPortalTab === "security" && (
         <div className="bg-white border border-[#E9ECEF] rounded-xl p-5 shadow-xs">
           <div className="flex items-center gap-2 mb-2">
             <KeyRound className="w-4 h-4 text-[#0984E3]" />
@@ -785,7 +844,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
             </h3>
           </div>
           <p className="text-xs text-[#636E72] mb-4">
-            Update the secret password required to access this Ad Manager portal. Only you know this key.
+            Update the secret password required to access this Ad Manager & Blog portal. Only you know this key.
           </p>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -808,6 +867,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
             Current active passkey: <span className="font-mono font-semibold text-[#0984E3]">{adminPasskey}</span>
           </div>
         </div>
+        )}
       </main>
     </div>
   );
