@@ -438,8 +438,8 @@ Return a strict JSON array of objects:
   }
 });
 
-// 4. API: Bulk URL Ping / Header Status Checker
-app.post("/api/seo/ping-urls", async (req, res) => {
+// 4. API: Bulk URL Ping / Header Status & Redirect Checker
+const handlePingRequest = async (req: express.Request, res: express.Response) => {
   try {
     const { urls } = req.body;
     if (!Array.isArray(urls) || urls.length === 0) {
@@ -458,25 +458,79 @@ app.post("/api/seo/ping-urls", async (req, res) => {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 6000);
 
-          const response = await fetch(target, {
+          // 1. Initial manual check to catch 301/302 redirects accurately
+          let initialResponse = await fetch(target, {
             method: "HEAD",
             signal: controller.signal,
-            redirect: "follow",
+            redirect: "manual",
             headers: {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             },
           });
-          clearTimeout(timeout);
 
+          let statusCode = initialResponse.status;
+          let statusText = initialResponse.statusText || "OK";
+          let finalUrl = target;
+          let isRedirect = false;
+          const redirectChain: string[] = [];
+
+          // If redirect status (301, 302, 303, 307, 308 or opaqueredirect)
+          if (statusCode >= 300 && statusCode < 400) {
+            isRedirect = true;
+            statusText = statusCode === 301 ? "Moved Permanently" : statusCode === 302 ? "Found" : "Redirect";
+            const location = initialResponse.headers.get("location");
+            if (location) {
+              finalUrl = new URL(location, target).toString();
+              redirectChain.push(finalUrl);
+            }
+          }
+
+          // 2. If it was a redirect, follow to final destination
+          if (isRedirect && finalUrl !== target) {
+            try {
+              const followRes = await fetch(finalUrl, {
+                method: "HEAD",
+                signal: controller.signal,
+                redirect: "follow",
+                headers: {
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                },
+              });
+              if (followRes.url) {
+                finalUrl = followRes.url;
+              }
+            } catch {
+              // Ignore follow failure, keep detected redirect location
+            }
+          } else if (!isRedirect && statusCode === 0) {
+            // Some servers reject HEAD, fallback to GET with follow
+            const getRes = await fetch(target, {
+              method: "GET",
+              signal: controller.signal,
+              redirect: "follow",
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              },
+            });
+            statusCode = getRes.status;
+            statusText = getRes.statusText || "OK";
+            finalUrl = getRes.url || target;
+            if (finalUrl !== target) isRedirect = true;
+          }
+
+          clearTimeout(timeout);
           const duration = Date.now() - start;
+
           return {
             url: rawUrl,
-            finalUrl: response.url,
-            statusCode: response.status,
-            statusText: response.statusText || "OK",
-            isSecure: response.url.startsWith("https://"),
+            finalUrl,
+            statusCode,
+            statusText,
+            isSecure: finalUrl.startsWith("https://"),
             responseTimeMs: duration,
-            alive: response.status >= 200 && response.status < 400,
+            alive: (statusCode >= 200 && statusCode < 400),
+            isRedirect,
+            redirectChain,
           };
         } catch (err: any) {
           return {
@@ -487,17 +541,21 @@ app.post("/api/seo/ping-urls", async (req, res) => {
             isSecure: target.startsWith("https://"),
             responseTimeMs: Date.now() - start,
             alive: false,
+            isRedirect: false,
           };
         }
       })
     );
 
-    return res.json({ success: true, count: results.length, data: results });
+    return res.json({ success: true, count: results.length, data: results, results: results });
   } catch (error: any) {
-    console.error("Error in /api/seo/ping-urls:", error);
+    console.error("Error in URL ping handler:", error);
     res.status(500).json({ error: error.message || "Failed to ping URLs" });
   }
-});
+};
+
+app.post("/api/seo/ping-urls", handlePingRequest);
+app.post("/api/ping-urls", handlePingRequest);
 
 // Vite middleware & Production static serving
 async function startServer() {

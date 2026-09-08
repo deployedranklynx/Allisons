@@ -164,16 +164,48 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[#475569]">
-            <a href="#tools" className="hover:text-[#0984E3] transition-colors">
+            <a
+              href="#tools"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("tools")?.scrollIntoView({ behavior: "smooth" });
+                window.history.replaceState(null, "", "#tools");
+              }}
+              className="hover:text-[#0984E3] transition-colors"
+            >
               Tools Suite
             </a>
-            <a href="#workflow" className="hover:text-[#0984E3] transition-colors">
+            <a
+              href="#workflow"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("workflow")?.scrollIntoView({ behavior: "smooth" });
+                window.history.replaceState(null, "", "#workflow");
+              }}
+              className="hover:text-[#0984E3] transition-colors"
+            >
               Workflow
             </a>
-            <a href="#why-us" className="hover:text-[#0984E3] transition-colors">
+            <a
+              href="#why-us"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("why-us")?.scrollIntoView({ behavior: "smooth" });
+                window.history.replaceState(null, "", "#why-us");
+              }}
+              className="hover:text-[#0984E3] transition-colors"
+            >
               Why ASA Tool
             </a>
-            <a href="#faq" className="hover:text-[#0984E3] transition-colors">
+            <a
+              href="#faq"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" });
+                window.history.replaceState(null, "", "#faq");
+              }}
+              className="hover:text-[#0984E3] transition-colors"
+            >
               FAQ
             </a>
           </nav>

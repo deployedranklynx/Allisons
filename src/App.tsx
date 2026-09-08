@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ActiveTab } from "./types";
 import { LandingPage } from "./components/LandingPage";
 import { Sidebar } from "./components/Sidebar";
@@ -15,16 +15,145 @@ import { DomainMetricsChecker } from "./components/DomainMetricsChecker";
 import { KeywordDifficultyChecker } from "./components/KeywordDifficultyChecker";
 import { RankTracker } from "./components/RankTracker";
 
+// Map URL strings/aliases to canonical tabs
+function resolveTab(val: string): ActiveTab | null {
+  const clean = val.toLowerCase().trim().replace(/^\/+|\/+$/g, "");
+  if (!clean || clean === "landing" || clean === "home" || clean === "index.html") return "landing";
+
+  if (["link-generator", "links", "link-builder", "hyperlinks", "hyperlink-suite", "generator"].includes(clean)) {
+    return "link-generator";
+  }
+  if (["bulk-opener", "opener", "url-opener", "open-urls", "url-bulk-opener", "ping-inspector"].includes(clean)) {
+    return "bulk-opener";
+  }
+  if (["url-cleaner", "cleaner", "url-dedupe", "dedupe", "protocol-cleaner", "duplicate-remover"].includes(clean)) {
+    return "url-cleaner";
+  }
+  if (["domain-metrics", "metrics", "authority", "da-checker", "domain-authority", "moz-ahrefs"].includes(clean)) {
+    return "domain-metrics";
+  }
+  if (["keyword-difficulty", "keywords", "kd", "kd-checker", "keyword-research", "search-intent"].includes(clean)) {
+    return "keyword-difficulty";
+  }
+  if (["rank-tracker", "rank", "rankings", "serp-tracker", "tracker", "serp"].includes(clean)) {
+    return "rank-tracker";
+  }
+
+  return null;
+}
+
+// Read the tab from current browser URL (search params, hash, or pathname)
+function getTabFromLocation(): ActiveTab {
+  if (typeof window === "undefined") return "landing";
+
+  // 1. Query parameters: ?tool=... or ?tab=...
+  const searchParams = new URLSearchParams(window.location.search);
+  const param = searchParams.get("tool") || searchParams.get("tab");
+  if (param) {
+    const matched = resolveTab(param);
+    if (matched) return matched;
+  }
+
+  // 2. Hash routing: #link-generator, #/link-generator, etc.
+  const rawHash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
+  if (rawHash) {
+    // Landing page anchor sections
+    if (["tools", "workflow", "why-us", "faq"].includes(rawHash)) {
+      return "landing";
+    }
+    const matched = resolveTab(rawHash);
+    if (matched) return matched;
+  }
+
+  // 3. Pathname routing: /link-generator, /bulk-opener, etc.
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  if (path) {
+    const matched = resolveTab(path);
+    if (matched) return matched;
+  }
+
+  return "landing";
+}
+
+// Tab titles for document.title sync
+const TAB_TITLES: Record<ActiveTab, string> = {
+  landing: "All-in-One SEO Tool - Professional Webmaster & Link-Building Toolkit",
+  "link-generator": "Bulk Hyperlink Suite - All-in-One SEO Tool",
+  "bulk-opener": "Bulk URL Opener & Ping Inspector - All-in-One SEO Tool",
+  "url-cleaner": "Protocol Cleaner & Duplicate Remover - All-in-One SEO Tool",
+  "domain-metrics": "Moz, Ahrefs & Semrush Authority Inspector - All-in-One SEO Tool",
+  "keyword-difficulty": "Keyword Difficulty & Search Intent - All-in-One SEO Tool",
+  "rank-tracker": "Worldwide SERP & Rank Tracker - All-in-One SEO Tool",
+};
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("landing");
+  const [activeTab, setActiveTabState] = useState<ActiveTab>(() => getTabFromLocation());
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+
+  // Navigate to a new tab and synchronize URL + title
+  const handleSelectTab = useCallback((tab: ActiveTab, pushToHistory = true) => {
+    setActiveTabState(tab);
+
+    if (typeof window !== "undefined") {
+      document.title = TAB_TITLES[tab] || TAB_TITLES.landing;
+
+      if (pushToHistory) {
+        const targetPath = tab === "landing" ? "/" : `/${tab}`;
+        const currentPath = window.location.pathname;
+
+        if (currentPath !== targetPath) {
+          window.history.pushState({ tab }, "", targetPath);
+        }
+      }
+    }
+  }, []);
+
+  // Listen to browser Back / Forward buttons & Hash changes
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const detectedTab = getTabFromLocation();
+      setActiveTabState(detectedTab);
+      document.title = TAB_TITLES[detectedTab] || TAB_TITLES.landing;
+
+      // If landing page has an anchor hash, smooth scroll to it
+      if (detectedTab === "landing" && window.location.hash) {
+        const anchorId = window.location.hash.replace(/^#\/?/, "");
+        const targetEl = document.getElementById(anchorId);
+        if (targetEl) {
+          setTimeout(() => {
+            targetEl.scrollIntoView({ behavior: "smooth" });
+          }, 80);
+        }
+      }
+    };
+
+    window.addEventListener("popstate", handleUrlChange);
+    window.addEventListener("hashchange", handleUrlChange);
+
+    // Initial title & anchor scroll synchronization
+    document.title = TAB_TITLES[activeTab] || TAB_TITLES.landing;
+    if (activeTab === "landing" && window.location.hash) {
+      const anchorId = window.location.hash.replace(/^#\/?/, "");
+      const targetEl = document.getElementById(anchorId);
+      if (targetEl) {
+        setTimeout(() => {
+          targetEl.scrollIntoView({ behavior: "smooth" });
+        }, 120);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("popstate", handleUrlChange);
+      window.removeEventListener("hashchange", handleUrlChange);
+    };
+  }, [activeTab]);
 
   // If on landing page, display the dedicated full-screen classic landing layout
   if (activeTab === "landing") {
     return (
       <LandingPage
-        onSelectTab={(tab) => setActiveTab(tab)}
-        onLaunchApp={() => setActiveTab("link-generator")}
+        onSelectTab={(tab) => handleSelectTab(tab, true)}
+        onLaunchApp={() => handleSelectTab("link-generator", true)}
       />
     );
   }
@@ -34,7 +163,7 @@ export default function App() {
       {/* Clean Minimalism Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => handleSelectTab(tab, true)}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -44,7 +173,7 @@ export default function App() {
         {/* Top Header */}
         <Header
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={(tab) => handleSelectTab(tab, true)}
           onOpenSidebar={() => setIsSidebarOpen(true)}
         />
 

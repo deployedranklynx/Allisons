@@ -104,4 +104,6 @@ export interface UrlPingResult {
   isSecure: boolean;
   responseTimeMs: number;
   alive: boolean;
+  isRedirect?: boolean;
+  redirectChain?: string[];
 }

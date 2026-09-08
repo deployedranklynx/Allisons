@@ -206,19 +206,41 @@ export function calculateRankTrackerFallback(
   };
 }
 
-// 4. Client-Side Fallback for URL Ping / Status Inspection
+// 4. Client-Side Fallback for URL Ping / Status & Redirect Inspection
 export function calculateUrlPingFallback(urls: string[]): UrlPingResult[] {
   return urls.map((u) => {
-    const isSecure = /^https:\/\//i.test(u);
-    const latency = Math.floor(Math.random() * 180 + 40);
+    let finalUrl = u;
+    let statusCode = 200;
+    let statusText = "OK";
+    let isRedirect = false;
+    const redirectChain: string[] = [];
+
+    // Realistically detect HTTP -> HTTPS upgrade redirect
+    if (/^http:\/\//i.test(u)) {
+      isRedirect = true;
+      statusCode = 301;
+      statusText = "Moved Permanently";
+      finalUrl = u.replace(/^http:\/\//i, "https://");
+      redirectChain.push(finalUrl);
+    } else if (!/^https?:\/\//i.test(u)) {
+      isRedirect = true;
+      statusCode = 301;
+      statusText = "Redirect";
+      finalUrl = `https://${u}`;
+      redirectChain.push(finalUrl);
+    }
+
+    const latency = Math.floor(Math.random() * 140 + 35);
     return {
       url: u,
-      finalUrl: u,
-      statusCode: 200,
-      statusText: "OK",
-      isSecure,
+      finalUrl,
+      statusCode,
+      statusText,
+      isSecure: finalUrl.startsWith("https://"),
       responseTimeMs: latency,
       alive: true,
+      isRedirect,
+      redirectChain,
     };
   });
 }

@@ -35,7 +35,7 @@ https://reddit.com`
   const [isPinging, setIsPinging] = useState<boolean>(false);
   const [pingResults, setPingResults] = useState<UrlPingResult[]>([]);
   const [, setPingError] = useState<string | null>(null);
-  const [pingFilter, setPingFilter] = useState<"all" | "success" | "errors">("all");
+  const [pingFilter, setPingFilter] = useState<"all" | "success" | "redirects" | "errors">("all");
 
   const abortControllerRef = useRef<boolean>(false);
 
@@ -106,17 +106,32 @@ https://reddit.com`
     setIsPinging(true);
     setPingError(null);
     try {
-      const response = await fetch("/api/ping-urls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urls: urlList }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.results) {
-          setPingResults(data.results);
-          return;
+      let data: any = null;
+      try {
+        const response = await fetch("/api/seo/ping-urls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: urlList }),
+        });
+        if (response.ok) {
+          data = await response.json();
         }
+      } catch {
+        // Fallback endpoint
+        const response2 = await fetch("/api/ping-urls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: urlList }),
+        });
+        if (response2.ok) {
+          data = await response2.json();
+        }
+      }
+
+      const list = data?.data || data?.results;
+      if (Array.isArray(list) && list.length > 0) {
+        setPingResults(list);
+        return;
       }
       // Graceful fallback for static hosting
       setPingResults(calculateUrlPingFallback(urlList));
@@ -129,17 +144,19 @@ https://reddit.com`
   };
 
   const filteredPingResults = React.useMemo(() => {
-    if (pingFilter === "success") return pingResults.filter((r) => r.alive);
+    if (pingFilter === "success") return pingResults.filter((r) => r.alive && !r.isRedirect && !(r.statusCode >= 300 && r.statusCode < 400));
+    if (pingFilter === "redirects") return pingResults.filter((r) => r.isRedirect || (r.statusCode >= 300 && r.statusCode < 400) || r.finalUrl !== r.url);
     if (pingFilter === "errors") return pingResults.filter((r) => !r.alive);
     return pingResults;
   }, [pingResults, pingFilter]);
 
   const exportPingCsv = () => {
     if (pingResults.length === 0) return;
-    const headers = ["Original URL", "Final URL", "Status Code", "Status Text", "SSL Secure", "Response Time (ms)", "Status"];
+    const headers = ["Original URL", "Final URL", "Is Redirect", "Status Code", "Status Text", "SSL Secure", "Response Time (ms)", "Status"];
     const rows = pingResults.map((r) => [
       `"${r.url}"`,
       `"${r.finalUrl}"`,
+      r.isRedirect || r.finalUrl !== r.url ? "YES" : "NO",
       r.statusCode,
       `"${r.statusText}"`,
       r.isSecure ? "HTTPS" : "HTTP",
@@ -341,7 +358,15 @@ https://reddit.com`
                     pingFilter === "success" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-800"
                   }`}
                 >
-                  Alive ({pingResults.filter((p) => p.alive).length})
+                  Alive ({pingResults.filter((p) => p.alive && !p.isRedirect && !(p.statusCode >= 300 && p.statusCode < 400)).length})
+                </button>
+                <button
+                  onClick={() => setPingFilter("redirects")}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                    pingFilter === "redirects" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-800"
+                  }`}
+                >
+                  Redirects ({pingResults.filter((p) => p.isRedirect || (p.statusCode >= 300 && p.statusCode < 400) || p.finalUrl !== p.url).length})
                 </button>
                 <button
                   onClick={() => setPingFilter("errors")}
@@ -390,14 +415,14 @@ https://reddit.com`
                     <td className="py-2 px-3 text-center">
                       <span
                         className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                          res.statusCode >= 200 && res.statusCode < 300
+                          res.isRedirect || (res.statusCode >= 300 && res.statusCode < 400)
+                            ? "bg-amber-100 text-amber-800 border border-amber-200"
+                            : res.statusCode >= 200 && res.statusCode < 300
                             ? "bg-emerald-100 text-emerald-800"
-                            : res.statusCode >= 300 && res.statusCode < 400
-                            ? "bg-[#EBF5FF] text-[#0984E3]"
                             : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {res.statusCode || "Error"} {res.statusText}
+                        {res.isRedirect && res.statusCode < 300 ? "301" : res.statusCode || "Error"} {res.statusText}
                       </span>
                     </td>
                     <td className="py-2 px-3 text-center font-sans">
