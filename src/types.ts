@@ -1,4 +1,5 @@
 export type ActiveTab =
+  | "landing"
   | "link-generator"
   | "url-cleaner"
   | "bulk-opener"

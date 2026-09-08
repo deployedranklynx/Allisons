@@ -1,6 +1,7 @@
 import React from "react";
 import { ActiveTab } from "../types";
 import {
+  Home,
   Link2,
   Scissors,
   ExternalLink,
@@ -24,6 +25,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose,
 }) => {
   const navSections = [
+    {
+      group: "Overview",
+      items: [
+        {
+          id: "landing" as ActiveTab,
+          label: "Home / Overview",
+          icon: Home,
+          emoji: "🏠",
+        },
+      ],
+    },
     {
       group: "Bulk Operations",
       items: [

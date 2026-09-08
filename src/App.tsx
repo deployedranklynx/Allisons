@@ -5,6 +5,7 @@
 
 import React, { useState } from "react";
 import { ActiveTab } from "./types";
+import { LandingPage } from "./components/LandingPage";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { BulkLinkGenerator } from "./components/BulkLinkGenerator";
@@ -15,8 +16,18 @@ import { KeywordDifficultyChecker } from "./components/KeywordDifficultyChecker"
 import { RankTracker } from "./components/RankTracker";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("link-generator");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("landing");
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+
+  // If on landing page, display the dedicated full-screen classic landing layout
+  if (activeTab === "landing") {
+    return (
+      <LandingPage
+        onSelectTab={(tab) => setActiveTab(tab)}
+        onLaunchApp={() => setActiveTab("link-generator")}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-[#F8F9FA] text-[#2D3436] font-sans overflow-hidden">

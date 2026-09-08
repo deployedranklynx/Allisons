@@ -1,6 +1,6 @@
 import React from "react";
 import { ActiveTab } from "../types";
-import { Menu } from "lucide-react";
+import { Menu, Home } from "lucide-react";
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -15,6 +15,8 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const getTabTitle = (tab: ActiveTab) => {
     switch (tab) {
+      case "landing":
+        return "Home & Toolkit Overview";
       case "link-generator":
         return "Bulk Hyperlink & URL Suite";
       case "bulk-opener":
@@ -51,6 +53,14 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Quick Jump Action Pills matching Clean Minimalism theme */}
         <div className="hidden md:flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab("landing")}
+            className="px-3 py-1 text-xs border border-[#E9ECEF] rounded-md hover:bg-gray-50 text-[#636E72] transition-colors flex items-center gap-1.5"
+          >
+            <Home className="w-3.5 h-3.5 text-[#0984E3]" />
+            <span>Home Page</span>
+          </button>
+
           {activeTab !== "url-cleaner" && (
             <button
               onClick={() => setActiveTab("url-cleaner")}
