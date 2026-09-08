@@ -1,17 +1,21 @@
 import React from "react";
-import { ActiveTab } from "../types";
-import { Menu, Home } from "lucide-react";
+import { ActiveTab, User, AuthModalMode } from "../types";
+import { Menu, Home, User as UserIcon, Sparkles } from "lucide-react";
 
 interface HeaderProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   onOpenSidebar: () => void;
+  user?: User | null;
+  onOpenAuth?: (mode?: AuthModalMode) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   onOpenSidebar,
+  user,
+  onOpenAuth,
 }) => {
   const getTabTitle = (tab: ActiveTab) => {
     switch (tab) {
@@ -88,15 +92,37 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right side status badge and active tool indicator */}
+      {/* Right side status badge and user account action */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#F8F9FA] border border-[#E9ECEF] text-xs text-[#636E72]">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span className="font-medium">All Tools Active</span>
         </div>
-        <span className="text-xs px-2.5 py-1 rounded-full bg-[#EBF5FF] text-[#0984E3] font-semibold border border-[#0984E3]/20">
-          Pro Mode
-        </span>
+
+        {/* User Account / Sign In CTA */}
+        {user ? (
+          <button
+            onClick={() => onOpenAuth && onOpenAuth("profile")}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-[#E9ECEF] hover:border-[#0984E3] text-xs text-[#2D3436] transition-all cursor-pointer shadow-2xs"
+            title="View Account & Plan"
+          >
+            <div className="w-6 h-6 rounded-full bg-[#0984E3] text-white flex items-center justify-center font-bold text-[11px]">
+              {user.name.slice(0, 1).toUpperCase()}
+            </div>
+            <div className="hidden sm:block text-left">
+              <span className="font-semibold block leading-tight max-w-[100px] truncate">{user.name}</span>
+              <span className="text-[10px] text-emerald-600 font-medium leading-none">Free Plan</span>
+            </div>
+          </button>
+        ) : (
+          <button
+            onClick={() => onOpenAuth && onOpenAuth("signup")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0984E3] hover:bg-[#0873C4] text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+          >
+            <UserIcon className="w-3.5 h-3.5" />
+            <span>Sign Up Free</span>
+          </button>
+        )}
       </div>
     </header>
   );

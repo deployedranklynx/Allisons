@@ -1,0 +1,22 @@
+[
+  {
+    "id": "usr_demo",
+    "name": "Webmaster Demo",
+    "email": "demo@ranklynx.com",
+    "password": "password123",
+    "plan": "free",
+    "isEarlyAdopter": true,
+    "createdAt": "2026-09-01T10:00:00.000Z",
+    "interestedInPro": false
+  },
+  {
+    "id": "usr_1788836452850",
+    "name": "Test User",
+    "email": "test@example.com",
+    "password": "testpassword",
+    "plan": "free",
+    "isEarlyAdopter": true,
+    "createdAt": "2026-09-08T03:00:52.850Z",
+    "interestedInPro": false
+  }
+]

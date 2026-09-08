@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -556,6 +557,359 @@ const handlePingRequest = async (req: express.Request, res: express.Response) =>
 
 app.post("/api/seo/ping-urls", handlePingRequest);
 app.post("/api/ping-urls", handlePingRequest);
+
+// ---------------------------------------------------------------------------
+// 5. ADS MANAGEMENT SYSTEM (Controlled strictly from dedicated admin section)
+// ---------------------------------------------------------------------------
+const DATA_DIR = path.join(process.cwd(), "data");
+const ADS_FILE = path.join(DATA_DIR, "ads-config.json");
+const USERS_FILE = path.join(DATA_DIR, "users.json");
+
+if (!fs.existsSync(DATA_DIR)) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (err) {
+    console.error("Could not create data directory:", err);
+  }
+}
+
+const DEFAULT_ADS_CONFIG = {
+  globalEnabled: true,
+  adminPasskey: "admin123",
+  ads: [
+    {
+      id: "ad-top-banner",
+      placement: "top_banner",
+      type: "native_text",
+      title: "⚡ High-Performance NVMe SEO VPS Hosting",
+      description: "Blazing fast cPanel servers optimized for backlink scrapers and crawling engines. 50% Off First Month.",
+      targetUrl: "https://example.com/fast-hosting",
+      buttonText: "Claim 50% Off",
+      badgeText: "Sponsored",
+      enabled: true,
+      impressions: 142,
+      clicks: 11,
+    },
+    {
+      id: "ad-sidebar",
+      placement: "sidebar",
+      type: "image_link",
+      title: "RankLynx Automated Backlink Indexer",
+      description: "Submit up to 10,000 links directly to Google and Bing with real-time indexing status verification.",
+      imageUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=400&q=80",
+      targetUrl: "https://example.com/indexer-pro",
+      buttonText: "Start Free Trial",
+      badgeText: "Featured Partner",
+      enabled: true,
+      impressions: 389,
+      clicks: 28,
+    },
+    {
+      id: "ad-tool-banner",
+      placement: "tool_banner",
+      type: "image_link",
+      title: "Boost Your Search Rankings with AI Anchor Text Optimization",
+      description: "Analyze anchor diversity, avoid Penguin penalties, and calculate target link ratios with one click.",
+      imageUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
+      targetUrl: "https://example.com/anchor-ai",
+      buttonText: "Optimize Anchors",
+      badgeText: "Recommended",
+      enabled: true,
+      impressions: 512,
+      clicks: 39,
+    },
+    {
+      id: "ad-footer-banner",
+      placement: "footer_banner",
+      type: "native_text",
+      title: "Webmaster Global Proxy & Residential IP Network",
+      description: "Over 50M+ rotating residential IPs for SERP rank tracking and scraping without captchas.",
+      targetUrl: "https://example.com/residential-proxy",
+      buttonText: "Get 1GB Free",
+      badgeText: "Sponsor",
+      enabled: false,
+      impressions: 96,
+      clicks: 5,
+    },
+  ],
+};
+
+let inMemoryAds = { ...DEFAULT_ADS_CONFIG };
+
+function loadAdsConfig() {
+  try {
+    if (fs.existsSync(ADS_FILE)) {
+      const raw = fs.readFileSync(ADS_FILE, "utf-8");
+      inMemoryAds = JSON.parse(raw);
+      return inMemoryAds;
+    }
+  } catch (err) {
+    console.error("Error reading ads config:", err);
+  }
+  saveAdsConfig(inMemoryAds);
+  return inMemoryAds;
+}
+
+function saveAdsConfig(data: any) {
+  try {
+    inMemoryAds = data;
+    fs.writeFileSync(ADS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error saving ads config to file:", err);
+  }
+}
+
+// Initial load
+loadAdsConfig();
+
+// 5A. Public: Fetch active ads for display on the site
+app.get("/api/ads", (req, res) => {
+  const config = inMemoryAds;
+  if (!config.globalEnabled) {
+    return res.json({ success: true, globalEnabled: false, ads: [] });
+  }
+
+  // Filter only enabled ads and increment impressions
+  const activeAds = config.ads.filter((a: any) => a.enabled);
+  activeAds.forEach((a: any) => {
+    a.impressions = (a.impressions || 0) + 1;
+  });
+
+  return res.json({
+    success: true,
+    globalEnabled: true,
+    ads: activeAds,
+  });
+});
+
+// 5B. Public: Track clicks on ads
+app.post("/api/ads/track-click", (req, res) => {
+  const { adId } = req.body;
+  if (!adId) return res.status(400).json({ error: "Missing adId" });
+
+  const found = inMemoryAds.ads.find((a: any) => a.id === adId);
+  if (found) {
+    found.clicks = (found.clicks || 0) + 1;
+    saveAdsConfig(inMemoryAds);
+  }
+  return res.json({ success: true, clicks: found ? found.clicks : 0 });
+});
+
+// 5C. Admin: Verify Admin Passkey
+app.post("/api/admin/verify-passkey", (req, res) => {
+  const { passkey } = req.body;
+  const currentKey = inMemoryAds.adminPasskey || "admin123";
+  if (passkey === currentKey) {
+    return res.json({ success: true, token: "adm_tok_" + Buffer.from(currentKey).toString("base64") });
+  }
+  return res.status(401).json({ success: false, error: "Invalid Admin Passkey" });
+});
+
+// 5D. Admin: Fetch complete ads configuration & stats
+app.get("/api/admin/ads", (req, res) => {
+  const authHeader = req.headers.authorization || "";
+  const queryKey = req.query.passkey as string;
+  const currentKey = inMemoryAds.adminPasskey || "admin123";
+
+  const isAuth =
+    authHeader === `Bearer ${currentKey}` ||
+    authHeader === `Bearer adm_tok_${Buffer.from(currentKey).toString("base64")}` ||
+    queryKey === currentKey;
+
+  if (!isAuth) {
+    return res.status(401).json({ error: "Unauthorized. Admin passkey required." });
+  }
+
+  return res.json({
+    success: true,
+    globalEnabled: inMemoryAds.globalEnabled,
+    adminPasskey: inMemoryAds.adminPasskey,
+    ads: inMemoryAds.ads,
+  });
+});
+
+// 5E. Admin: Save/Update ads configuration & passkey
+app.post("/api/admin/ads", (req, res) => {
+  const authHeader = req.headers.authorization || "";
+  const { passkey, globalEnabled, ads, newPasskey } = req.body;
+  const currentKey = inMemoryAds.adminPasskey || "admin123";
+
+  const isAuth =
+    passkey === currentKey ||
+    authHeader === `Bearer ${currentKey}` ||
+    authHeader === `Bearer adm_tok_${Buffer.from(currentKey).toString("base64")}`;
+
+  if (!isAuth) {
+    return res.status(401).json({ error: "Unauthorized. Admin passkey invalid." });
+  }
+
+  if (typeof globalEnabled === "boolean") {
+    inMemoryAds.globalEnabled = globalEnabled;
+  }
+  if (Array.isArray(ads)) {
+    inMemoryAds.ads = ads;
+  }
+  if (newPasskey && typeof newPasskey === "string" && newPasskey.trim().length >= 4) {
+    inMemoryAds.adminPasskey = newPasskey.trim();
+  }
+
+  saveAdsConfig(inMemoryAds);
+  return res.json({
+    success: true,
+    message: "Ads configuration saved and live on site.",
+    globalEnabled: inMemoryAds.globalEnabled,
+    adminPasskey: inMemoryAds.adminPasskey,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 6. USER SIGNUP & AUTHENTICATION (Monetization & Future Paid Tiers Ready)
+// ---------------------------------------------------------------------------
+const DEFAULT_USERS = [
+  {
+    id: "usr_demo",
+    name: "Webmaster Demo",
+    email: "demo@ranklynx.com",
+    password: "password123",
+    plan: "free",
+    isEarlyAdopter: true,
+    createdAt: "2026-09-01T10:00:00.000Z",
+    interestedInPro: false,
+  },
+];
+
+let inMemoryUsers = [...DEFAULT_USERS];
+
+function loadUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const raw = fs.readFileSync(USERS_FILE, "utf-8");
+      inMemoryUsers = JSON.parse(raw);
+      return inMemoryUsers;
+    }
+  } catch (err) {
+    console.error("Error reading users file:", err);
+  }
+  saveUsers(inMemoryUsers);
+  return inMemoryUsers;
+}
+
+function saveUsers(users: any[]) {
+  try {
+    inMemoryUsers = users;
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error saving users file:", err);
+  }
+}
+
+// Initial load
+loadUsers();
+
+// 6A. Signup: Create user account
+app.post("/api/auth/signup", (req, res) => {
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: "Name, email, and password are required" });
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const existing = inMemoryUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+  if (existing) {
+    return res.status(400).json({ error: "An account with this email already exists" });
+  }
+
+  const newUser = {
+    id: "usr_" + Date.now(),
+    name: String(name).trim(),
+    email: cleanEmail,
+    password: String(password),
+    plan: "free",
+    isEarlyAdopter: true,
+    createdAt: new Date().toISOString(),
+    interestedInPro: false,
+  };
+
+  inMemoryUsers.push(newUser);
+  saveUsers(inMemoryUsers);
+
+  const token = "tok_" + Buffer.from(newUser.id + ":" + newUser.email).toString("base64");
+  const { password: _, ...safeUser } = newUser;
+
+  return res.json({
+    success: true,
+    message: "Account created successfully! Welcome to the Early Adopter tier.",
+    token,
+    user: safeUser,
+  });
+});
+
+// 6B. Login: Authenticate existing user
+app.post("/api/auth/login", (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const found = inMemoryUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+
+  if (!found || found.password !== String(password)) {
+    return res.status(401).json({ error: "Invalid email or password" });
+  }
+
+  const token = "tok_" + Buffer.from(found.id + ":" + found.email).toString("base64");
+  const { password: _, ...safeUser } = found;
+
+  return res.json({
+    success: true,
+    message: "Logged in successfully.",
+    token,
+    user: safeUser,
+  });
+});
+
+// 6C. Get current user
+app.get("/api/auth/me", (req, res) => {
+  const authHeader = req.headers.authorization || "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  const token = authHeader.replace("Bearer ", "").trim();
+  try {
+    const decoded = Buffer.from(token.replace(/^tok_/, ""), "base64").toString("utf-8");
+    const [userId] = decoded.split(":");
+    const found = inMemoryUsers.find((u) => u.id === userId);
+    if (!found) {
+      return res.status(401).json({ error: "Session expired or user not found" });
+    }
+    const { password: _, ...safeUser } = found;
+    return res.json({ success: true, user: safeUser });
+  } catch {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+});
+
+// 6D. Pre-register for Future Paid / Pro Tier
+app.post("/api/auth/upgrade-interest", (req, res) => {
+  const { email, note } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const found = inMemoryUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+  if (found) {
+    found.interestedInPro = true;
+    saveUsers(inMemoryUsers);
+  }
+
+  return res.json({
+    success: true,
+    message: "Thank you! You are now on the VIP early-access list for our upcoming Pro Paid Tier with special launch pricing.",
+  });
+});
 
 // Vite middleware & Production static serving
 async function startServer() {

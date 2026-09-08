@@ -5,7 +5,44 @@ export type ActiveTab =
   | "bulk-opener"
   | "domain-metrics"
   | "keyword-difficulty"
-  | "rank-tracker";
+  | "rank-tracker"
+  | "admin-ads";
+
+export type AdPlacement = "top_banner" | "sidebar" | "tool_banner" | "footer_banner";
+export type AdType = "image_link" | "custom_html" | "native_text";
+
+export interface AdItem {
+  id: string;
+  placement: AdPlacement;
+  type: AdType;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  targetUrl?: string;
+  customHtml?: string;
+  buttonText?: string;
+  badgeText?: string;
+  enabled: boolean;
+  impressions: number;
+  clicks: number;
+}
+
+export interface AdsConfig {
+  globalEnabled: boolean;
+  ads: AdItem[];
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  plan: "free" | "pro";
+  isEarlyAdopter: boolean;
+  createdAt: string;
+  interestedInPro?: boolean;
+}
+
+export type AuthModalMode = "signin" | "signup" | "profile";
 
 export interface GeneratedLink {
   id: string;

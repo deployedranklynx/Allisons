@@ -1,0 +1,60 @@
+{
+  "globalEnabled": true,
+  "adminPasskey": "admin123",
+  "ads": [
+    {
+      "id": "ad-top-banner",
+      "placement": "top_banner",
+      "type": "native_text",
+      "title": "⚡ High-Performance NVMe SEO VPS Hosting",
+      "description": "Blazing fast cPanel servers optimized for backlink scrapers and crawling engines. 50% Off First Month.",
+      "targetUrl": "https://example.com/fast-hosting",
+      "buttonText": "Claim 50% Off",
+      "badgeText": "Sponsored",
+      "enabled": true,
+      "impressions": 142,
+      "clicks": 11
+    },
+    {
+      "id": "ad-sidebar",
+      "placement": "sidebar",
+      "type": "image_link",
+      "title": "RankLynx Automated Backlink Indexer",
+      "description": "Submit up to 10,000 links directly to Google and Bing with real-time indexing status verification.",
+      "imageUrl": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=400&q=80",
+      "targetUrl": "https://example.com/indexer-pro",
+      "buttonText": "Start Free Trial",
+      "badgeText": "Featured Partner",
+      "enabled": true,
+      "impressions": 389,
+      "clicks": 28
+    },
+    {
+      "id": "ad-tool-banner",
+      "placement": "tool_banner",
+      "type": "image_link",
+      "title": "Boost Your Search Rankings with AI Anchor Text Optimization",
+      "description": "Analyze anchor diversity, avoid Penguin penalties, and calculate target link ratios with one click.",
+      "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
+      "targetUrl": "https://example.com/anchor-ai",
+      "buttonText": "Optimize Anchors",
+      "badgeText": "Recommended",
+      "enabled": true,
+      "impressions": 512,
+      "clicks": 39
+    },
+    {
+      "id": "ad-footer-banner",
+      "placement": "footer_banner",
+      "type": "native_text",
+      "title": "Webmaster Global Proxy & Residential IP Network",
+      "description": "Over 50M+ rotating residential IPs for SERP rank tracking and scraping without captchas.",
+      "targetUrl": "https://example.com/residential-proxy",
+      "buttonText": "Get 1GB Free",
+      "badgeText": "Sponsor",
+      "enabled": false,
+      "impressions": 96,
+      "clicks": 5
+    }
+  ]
+}

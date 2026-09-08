@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ActiveTab } from "../types";
+import { ActiveTab, User, AuthModalMode, AdItem } from "../types";
+import { AdBanner } from "./AdBanner";
 import {
   Link2,
   Scissors,
@@ -15,16 +16,23 @@ import {
   ChevronDown,
   Layers,
   Sparkles,
+  User as UserIcon,
 } from "lucide-react";
 
 interface LandingPageProps {
   onSelectTab: (tab: ActiveTab) => void;
   onLaunchApp: () => void;
+  user?: User | null;
+  onOpenAuth?: (mode?: AuthModalMode) => void;
+  ads?: AdItem[];
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onSelectTab,
   onLaunchApp,
+  user,
+  onOpenAuth,
+  ads = [],
 }) => {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
@@ -146,6 +154,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] text-[#1E293B] font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
+      {/* Top Sponsor Announcement Bar */}
+      <AdBanner placement="top_banner" ads={ads} />
+
       {/* Top Classic Navigation Bar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0] shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
@@ -211,6 +222,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* User Account / Sign In CTA */}
+            {user ? (
+              <button
+                onClick={() => onOpenAuth && onOpenAuth("profile")}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-[#E2E8F0] hover:border-[#0984E3] text-xs text-[#0F172A] transition-all cursor-pointer"
+                title="Account Settings"
+              >
+                <div className="w-6 h-6 rounded-full bg-[#0984E3] text-white flex items-center justify-center font-bold text-[11px]">
+                  {user.name.slice(0, 1).toUpperCase()}
+                </div>
+                <span className="hidden sm:inline font-semibold">{user.name.split(" ")[0]}</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">Free</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => onOpenAuth && onOpenAuth("signup")}
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] hover:bg-gray-50 text-xs font-semibold text-[#0F172A] transition-colors cursor-pointer"
+              >
+                <UserIcon className="w-3.5 h-3.5 text-[#0984E3]" />
+                <span>Sign Up Free</span>
+              </button>
+            )}
+
             <button
               id="landing-header-launch-btn"
               onClick={onLaunchApp}
@@ -359,6 +393,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </div>
               );
             })}
+          </div>
+
+          {/* In-Content Sponsor Banner */}
+          <div className="mt-12">
+            <AdBanner placement="tool_banner" ads={ads} />
           </div>
         </div>
       </section>

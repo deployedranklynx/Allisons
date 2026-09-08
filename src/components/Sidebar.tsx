@@ -1,5 +1,6 @@
 import React from "react";
-import { ActiveTab } from "../types";
+import { ActiveTab, AdItem } from "../types";
+import { AdBanner } from "./AdBanner";
 import {
   Home,
   Link2,
@@ -16,6 +17,7 @@ interface SidebarProps {
   setActiveTab: (tab: ActiveTab) => void;
   isOpen: boolean;
   onClose: () => void;
+  ads?: AdItem[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -23,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveTab,
   isOpen,
   onClose,
+  ads = [],
 }) => {
   const navSections = [
     {
@@ -163,6 +166,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           ))}
         </nav>
+
+        {/* Sidebar Sponsor Ad Slot */}
+        <div className="px-4 py-2">
+          <AdBanner placement="sidebar" ads={ads} />
+        </div>
 
         {/* Status Footer */}
         <div className="p-4 bg-gray-50 border-t border-[#E9ECEF]">
