@@ -11,10 +11,22 @@ const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
+// Circuit-breaker state to prevent repetitive failed calls when project has 403/503
+let geminiAvailable = true;
+let lastGeminiCheck = 0;
+const GEMINI_COOLDOWN_MS = 2 * 60 * 1000; // 2 minute cooldown
+
 // Initialize Gemini SDK lazily / safely
-function getGeminiClient() {
+function getGeminiClient(): GoogleGenAI | null {
   if (!process.env.GEMINI_API_KEY) {
     return null;
+  }
+  if (!geminiAvailable) {
+    if (Date.now() - lastGeminiCheck > GEMINI_COOLDOWN_MS) {
+      geminiAvailable = true;
+    } else {
+      return null;
+    }
   }
   return new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
@@ -24,6 +36,13 @@ function getGeminiClient() {
       },
     },
   });
+}
+
+function recordGeminiError(context: string, err: any) {
+  lastGeminiCheck = Date.now();
+  geminiAvailable = false;
+  const status = err?.status || err?.code || "";
+  console.log(`[SEO Engine] Note: ${context} using algorithmic calculation engine (Status: ${status || "fallback"}).`);
 }
 
 // Helper to clean and extract root domain
@@ -196,7 +215,7 @@ Return a strict JSON array where each object has:
           }
         }
       } catch (aiErr) {
-        console.warn("Gemini metrics lookup fallback triggered:", aiErr);
+        recordGeminiError("Domain Metrics", aiErr);
       }
     }
 
@@ -264,7 +283,7 @@ Return a strict JSON array of objects with the exact schema:
           return res.json({ success: true, data: parsed });
         }
       } catch (aiErr) {
-        console.warn("Gemini KD fallback triggered:", aiErr);
+        recordGeminiError("Keyword Difficulty", aiErr);
       }
     }
 
@@ -373,7 +392,7 @@ Return a strict JSON array of objects:
           return res.json({ success: true, data: parsed });
         }
       } catch (aiErr) {
-        console.warn("Gemini Rank Tracker fallback triggered:", aiErr);
+        recordGeminiError("Rank Tracker", aiErr);
       }
     }
 
