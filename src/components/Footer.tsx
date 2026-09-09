@@ -170,7 +170,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => 
           {/* Editorial & Webmaster Column */}
           <div className="md:col-span-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-3">
-              Resources & Control
+              Resources & Editorial
             </h4>
             <div className="flex flex-col gap-2 text-xs font-medium text-[#475569]">
               <button
@@ -184,14 +184,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => 
                 onClick={() => onSelectTab("landing")}
                 className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer"
               >
-                Platform Overview
-              </button>
-              <button
-                onClick={() => onSelectTab("admin-ads")}
-                className="text-left hover:text-[#0984E3] transition-colors py-1 flex items-center gap-1.5 text-slate-500 hover:text-slate-800 cursor-pointer"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
-                <span>Admin & AdSense Portal</span>
+                Platform Overview & Guide
               </button>
             </div>
           </div>

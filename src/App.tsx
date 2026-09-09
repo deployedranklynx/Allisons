@@ -4,10 +4,19 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { ActiveTab, AdItem, User, AuthModalMode } from "./types";
+import {
+  ActiveTab,
+  AdItem,
+  User,
+  AuthModalMode,
+  SiteCustomization,
+  DEFAULT_SITE_CUSTOMIZATION,
+} from "./types";
 import { LandingPage } from "./components/LandingPage";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
+import { Footer } from "./components/Footer";
+import { HeadScriptInjector } from "./components/HeadScriptInjector";
 import { BulkLinkGenerator } from "./components/BulkLinkGenerator";
 import { UrlCleaner } from "./components/UrlCleaner";
 import { BulkUrlOpener } from "./components/BulkUrlOpener";
@@ -18,7 +27,7 @@ import { AdBanner } from "./components/AdBanner";
 import { AdminAdsManager } from "./components/AdminAdsManager";
 import { BlogSection } from "./components/BlogSection";
 import { AuthModal } from "./components/AuthModal";
-import { fetchCloudActiveAds } from "./lib/cloudAds";
+import { fetchCloudActiveAds, fetchCloudSiteSettings } from "./lib/cloudAds";
 
 // Map URL strings/aliases to canonical tabs
 function resolveTab(val: string): ActiveTab | null {
@@ -121,6 +130,9 @@ export default function App() {
   // Ads state
   const [ads, setAds] = useState<AdItem[]>([]);
 
+  // Site settings & branding state
+  const [siteSettings, setSiteSettings] = useState<SiteCustomization>(DEFAULT_SITE_CUSTOMIZATION);
+
   // User auth state
   const [user, setUser] = useState<User | null>(() => {
     try {
@@ -132,6 +144,25 @@ export default function App() {
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>("signup");
+
+  // Fetch site customization & branding settings
+  const fetchSiteSettings = useCallback(async () => {
+    try {
+      const cloudSettings = await fetchCloudSiteSettings();
+      if (cloudSettings) {
+        setSiteSettings(cloudSettings);
+        return;
+      }
+    } catch {}
+
+    try {
+      const res = await fetch("/api/site-settings");
+      if (res.ok) {
+        const data = await res.json();
+        if (data) setSiteSettings(data);
+      }
+    } catch {}
+  }, []);
 
   // Fetch active ads from Firebase Cloud with local server fallback
   const fetchActiveAds = useCallback(async () => {
@@ -168,7 +199,8 @@ export default function App() {
 
   useEffect(() => {
     fetchActiveAds();
-  }, [fetchActiveAds]);
+    fetchSiteSettings();
+  }, [fetchActiveAds, fetchSiteSettings]);
 
   const handleOpenAuth = (mode: AuthModalMode = "signup") => {
     setAuthModalMode(mode);
@@ -215,8 +247,7 @@ export default function App() {
     window.addEventListener("popstate", handleUrlChange);
     window.addEventListener("hashchange", handleUrlChange);
 
-    // Initial title & anchor scroll synchronization
-    document.title = TAB_TITLES[activeTab] || TAB_TITLES.landing;
+    // Initial anchor scroll synchronization
     if (activeTab === "landing" && window.location.hash) {
       const anchorId = window.location.hash.replace(/^#\/?/, "");
       const targetEl = document.getElementById(anchorId);
@@ -236,12 +267,20 @@ export default function App() {
   // SECRET ADMIN PORTAL (Only accessed by direct URL /admin-ads)
   if (activeTab === "admin-ads") {
     return (
-      <AdminAdsManager
-        onReturnHome={() => {
-          fetchActiveAds();
-          handleSelectTab("landing", true);
-        }}
-      />
+      <>
+        <HeadScriptInjector siteSettings={siteSettings} activeTab={activeTab} />
+        <AdminAdsManager
+          siteSettings={siteSettings}
+          onSiteSettingsUpdated={(newSettings) => {
+            setSiteSettings(newSettings);
+          }}
+          onReturnHome={() => {
+            fetchActiveAds();
+            fetchSiteSettings();
+            handleSelectTab("landing", true);
+          }}
+        />
+      </>
     );
   }
 
@@ -249,12 +288,14 @@ export default function App() {
   if (activeTab === "landing") {
     return (
       <>
+        <HeadScriptInjector siteSettings={siteSettings} activeTab={activeTab} />
         <LandingPage
           onSelectTab={(tab) => handleSelectTab(tab, true)}
           onLaunchApp={() => handleSelectTab("link-generator", true)}
           user={user}
           onOpenAuth={handleOpenAuth}
           ads={ads}
+          siteSettings={siteSettings}
         />
         <AuthModal
           isOpen={isAuthModalOpen}
@@ -269,6 +310,9 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-full bg-[#F8F9FA] text-[#2D3436] font-sans overflow-hidden">
+      {/* Dynamic Head and Meta script injector for AdSense, custom verification tags & On-Page SEO */}
+      <HeadScriptInjector siteSettings={siteSettings} activeTab={activeTab} />
+
       {/* Clean Minimalism Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
@@ -276,6 +320,7 @@ export default function App() {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         ads={ads}
+        siteSettings={siteSettings}
       />
 
       {/* Main Workspace Frame */}
@@ -287,6 +332,7 @@ export default function App() {
           onOpenSidebar={() => setIsSidebarOpen(true)}
           user={user}
           onOpenAuth={handleOpenAuth}
+          siteSettings={siteSettings}
         />
 
         {/* Top Sponsor Bar if configured */}
@@ -310,6 +356,14 @@ export default function App() {
 
             {/* In-tool Sponsor / Ad Banner */}
             <AdBanner placement="tool_banner" ads={ads} className="mt-8" />
+
+            {/* Dynamic Minimalist Footer */}
+            <div className="mt-16 -mx-4 sm:-mx-6 lg:-mx-8">
+              <Footer
+                siteSettings={siteSettings}
+                onSelectTab={(tab) => handleSelectTab(tab, true)}
+              />
+            </div>
           </div>
         </div>
       </main>

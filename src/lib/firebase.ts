@@ -11,7 +11,7 @@ import {
   increment,
 } from "firebase/firestore";
 import { firebaseConfig } from "./firebaseConfig";
-import { BlogPost, SiteCustomization, DEFAULT_SITE_CUSTOMIZATION } from "../types";
+import { BlogPost, SiteCustomization, DEFAULT_SITE_CUSTOMIZATION, DEFAULT_PAGE_SEO_CONFIGS } from "../types";
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -471,9 +471,14 @@ export async function getFirebaseSiteSettings(): Promise<SiteCustomization> {
     const docRef = doc(db, "siteSettings", "global");
     const snap = await getDoc(docRef);
     if (snap.exists()) {
+      const data = snap.data() as Partial<SiteCustomization>;
       return {
         ...DEFAULT_SITE_CUSTOMIZATION,
-        ...(snap.data() as Partial<SiteCustomization>),
+        ...data,
+        pageSeo: {
+          ...DEFAULT_PAGE_SEO_CONFIGS,
+          ...(data.pageSeo || {}),
+        },
       };
     }
   } catch (err) {

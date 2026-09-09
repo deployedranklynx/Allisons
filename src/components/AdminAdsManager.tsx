@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AdItem, AdPlacement, AdType } from "../types";
+import { AdItem, AdPlacement, AdType, SiteCustomization } from "../types";
 import {
   verifyCloudAdminPasskey,
   fetchCloudAdminConfig,
@@ -27,14 +27,26 @@ import {
   Cloud,
   BookOpen,
   FileText,
+  Palette,
+  FileCode,
+  Search,
 } from "lucide-react";
 import { AdminBlogManager } from "./AdminBlogManager";
+import { AdminBrandingManager } from "./AdminBrandingManager";
+import { AdminAdSenseManager } from "./AdminAdSenseManager";
+import { AdminSeoManager } from "./AdminSeoManager";
 
 interface AdminAdsManagerProps {
   onReturnHome: () => void;
+  siteSettings?: SiteCustomization;
+  onSiteSettingsUpdated?: (newSettings: SiteCustomization) => void;
 }
 
-export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }) => {
+export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
+  onReturnHome,
+  siteSettings,
+  onSiteSettingsUpdated,
+}) => {
   const [passkeyInput, setPasskeyInput] = useState<string>("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     try {
@@ -49,7 +61,9 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
   // Ads Config state
   const [globalEnabled, setGlobalEnabled] = useState<boolean>(true);
   const [ads, setAds] = useState<AdItem[]>([]);
-  const [adminPortalTab, setAdminPortalTab] = useState<"blog" | "ads" | "security">("blog");
+  const [adminPortalTab, setAdminPortalTab] = useState<
+    "branding" | "seo" | "adsense" | "blog" | "ads" | "security"
+  >("branding");
   const [activePlacementTab, setActivePlacementTab] = useState<AdPlacement>("top_banner");
   const [adminPasskey, setAdminPasskey] = useState<string>("admin123");
   const [newPasskeyInput, setNewPasskeyInput] = useState<string>("");
@@ -354,8 +368,71 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
       <div className="bg-white border-b border-[#E9ECEF] px-4 sm:px-8">
         <div className="max-w-6xl mx-auto flex items-center gap-2 overflow-x-auto py-2.5">
           <button
+            onClick={() => setAdminPortalTab("branding")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              adminPortalTab === "branding"
+                ? "bg-[#0984E3] text-white shadow-xs"
+                : "text-[#636E72] hover:bg-gray-100"
+            }`}
+          >
+            <Palette className="w-4 h-4" />
+            <span>Branding & Logo (Header / Footer)</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                adminPortalTab === "branding"
+                  ? "bg-white/20 text-white"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              Control
+            </span>
+          </button>
+
+          <button
+            onClick={() => setAdminPortalTab("seo")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              adminPortalTab === "seo"
+                ? "bg-[#0984E3] text-white shadow-xs"
+                : "text-[#636E72] hover:bg-gray-100"
+            }`}
+          >
+            <Search className="w-4 h-4" />
+            <span>On-Page SEO & Meta Tags</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                adminPortalTab === "seo"
+                  ? "bg-white/20 text-white"
+                  : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              Per-Tool
+            </span>
+          </button>
+
+          <button
+            onClick={() => setAdminPortalTab("adsense")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              adminPortalTab === "adsense"
+                ? "bg-[#0984E3] text-white shadow-xs"
+                : "text-[#636E72] hover:bg-gray-100"
+            }`}
+          >
+            <FileCode className="w-4 h-4" />
+            <span>AdSense, ads.txt & Verification</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                adminPortalTab === "adsense"
+                  ? "bg-white/20 text-white"
+                  : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              Live Hub
+            </span>
+          </button>
+
+          <button
             onClick={() => setAdminPortalTab("blog")}
-            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               adminPortalTab === "blog"
                 ? "bg-[#0984E3] text-white shadow-xs"
                 : "text-[#636E72] hover:bg-gray-100"
@@ -370,7 +447,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
 
           <button
             onClick={() => setAdminPortalTab("ads")}
-            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               adminPortalTab === "ads"
                 ? "bg-[#0984E3] text-white shadow-xs"
                 : "text-[#636E72] hover:bg-gray-100"
@@ -385,7 +462,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
 
           <button
             onClick={() => setAdminPortalTab("security")}
-            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               adminPortalTab === "security"
                 ? "bg-[#0984E3] text-white shadow-xs"
                 : "text-[#636E72] hover:bg-gray-100"
@@ -398,18 +475,33 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ onReturnHome }
       </div>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-8 py-8 space-y-6">
+        {/* Render Branding Manager Tab */}
+        {adminPortalTab === "branding" && (
+          <AdminBrandingManager onSiteSettingsUpdated={onSiteSettingsUpdated} />
+        )}
+
+        {/* Render On-Page SEO Manager Tab */}
+        {adminPortalTab === "seo" && (
+          <AdminSeoManager onSiteSettingsUpdated={onSiteSettingsUpdated} />
+        )}
+
+        {/* Render AdSense & ads.txt Tab */}
+        {adminPortalTab === "adsense" && (
+          <AdminAdSenseManager onSiteSettingsUpdated={onSiteSettingsUpdated} />
+        )}
+
         {/* Render Blog Manager Tab */}
         {adminPortalTab === "blog" && <AdminBlogManager />}
 
         {/* Alerts & Notifications */}
-        {adminPortalTab !== "blog" && saveSuccessMsg && (
+        {adminPortalTab !== "blog" && adminPortalTab !== "branding" && adminPortalTab !== "seo" && adminPortalTab !== "adsense" && saveSuccessMsg && (
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-sm text-emerald-800 animate-fadeIn">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
             <span className="font-medium">{saveSuccessMsg}</span>
           </div>
         )}
 
-        {adminPortalTab !== "blog" && saveErrorMsg && (
+        {adminPortalTab !== "blog" && adminPortalTab !== "branding" && adminPortalTab !== "seo" && adminPortalTab !== "adsense" && saveErrorMsg && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-sm text-red-800 animate-fadeIn">
             <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
             <span className="font-medium">{saveErrorMsg}</span>
