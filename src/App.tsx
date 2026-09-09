@@ -27,6 +27,9 @@ import { AdBanner } from "./components/AdBanner";
 import { AdminAdsManager } from "./components/AdminAdsManager";
 import { BlogSection } from "./components/BlogSection";
 import { AuthModal } from "./components/AuthModal";
+import { WordHtmlConverter } from "./components/WordHtmlConverter";
+import { MarkdownConverter } from "./components/MarkdownConverter";
+import { PdfEditor } from "./components/PdfEditor";
 import { fetchCloudActiveAds, fetchCloudSiteSettings } from "./lib/cloudAds";
 
 // Map URL strings/aliases to canonical tabs
@@ -68,6 +71,15 @@ function resolveTab(val: string): ActiveTab | null {
   }
   if (["blog", "blogs", "articles", "article", "journal", "editorial", "guides", "guide"].includes(clean)) {
     return "blog";
+  }
+  if (["word-html", "wordhtml", "word-to-html", "html-to-word", "doc-to-html", "word-cleaner", "clean-word"].includes(clean)) {
+    return "word-html";
+  }
+  if (["markdown-converter", "markdown", "rich-text-markdown", "md-converter", "md", "turndown"].includes(clean)) {
+    return "markdown-converter";
+  }
+  if (["pdf-editor", "pdf", "edit-pdf", "pdf-edit", "pdf-tool", "pfd-editor", "pfd"].includes(clean)) {
+    return "pdf-editor";
   }
 
   return null;
@@ -121,6 +133,9 @@ const TAB_TITLES: Record<ActiveTab, string> = {
   "rank-tracker": "Worldwide SERP & Rank Tracker - All-in-One SEO Tool",
   "admin-ads": "Ad Manager & Sponsor Control - All-in-One SEO Tool",
   blog: "Classique Editorial Journal & SEO Guides - All-in-One SEO Tool",
+  "word-html": "Word to HTML & HTML to Word Converter - Clean Word Bloat",
+  "markdown-converter": "Rich Text to Markdown & Markdown to Rich Text Suite",
+  "pdf-editor": "Professional PDF Editor - Add Text, Whiteout, Sign & Save Drafts",
 };
 
 export default function App() {
@@ -347,6 +362,9 @@ export default function App() {
             {activeTab === "domain-metrics" && <DomainMetricsChecker />}
             {activeTab === "keyword-difficulty" && <KeywordDifficultyChecker />}
             {activeTab === "rank-tracker" && <RankTracker />}
+            {activeTab === "word-html" && <WordHtmlConverter />}
+            {activeTab === "markdown-converter" && <MarkdownConverter />}
+            {activeTab === "pdf-editor" && <PdfEditor />}
             {activeTab === "blog" && (
               <BlogSection
                 ads={ads}

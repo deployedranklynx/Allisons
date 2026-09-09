@@ -11,6 +11,9 @@ import {
   Globe2,
   X,
   BookOpen,
+  FileCode,
+  Code2,
+  FileText,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -90,6 +93,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "Keyword Difficulty",
           icon: Search,
           emoji: "🔎",
+        },
+      ],
+    },
+    {
+      group: "Document & Editor Tools",
+      items: [
+        {
+          id: "word-html" as ActiveTab,
+          label: "Word to HTML",
+          icon: FileCode,
+          emoji: "📝",
+        },
+        {
+          id: "markdown-converter" as ActiveTab,
+          label: "Rich Text & Markdown",
+          icon: Code2,
+          emoji: "📑",
+        },
+        {
+          id: "pdf-editor" as ActiveTab,
+          label: "PDF Editor Pro",
+          icon: FileText,
+          emoji: "📄",
         },
       ],
     },

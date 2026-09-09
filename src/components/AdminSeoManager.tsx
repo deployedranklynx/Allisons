@@ -45,6 +45,9 @@ const PAGE_LIST: Array<{ id: string; name: string; path: string; icon: string }>
   { id: "domain-metrics", name: "Domain Metrics Inspector", path: "/#domain-metrics", icon: "📊" },
   { id: "keyword-difficulty", name: "Keyword Difficulty Analyzer", path: "/#keyword-difficulty", icon: "🎯" },
   { id: "rank-tracker", name: "SERP Rank Tracker", path: "/#rank-tracker", icon: "📈" },
+  { id: "word-html", name: "Word to HTML & HTML to Word", path: "/#word-html", icon: "📝" },
+  { id: "markdown-converter", name: "Rich Text to Markdown Suite", path: "/#markdown-converter", icon: "📑" },
+  { id: "pdf-editor", name: "Professional PDF Editor", path: "/#pdf-editor", icon: "📄" },
   { id: "blog", name: "Classique Editorial Blog", path: "/#blog", icon: "✍️" },
 ];
 

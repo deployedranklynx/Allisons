@@ -7,6 +7,9 @@ export type ActiveTab =
   | "domain-metrics"
   | "keyword-difficulty"
   | "rank-tracker"
+  | "word-html"
+  | "markdown-converter"
+  | "pdf-editor"
   | "admin-ads";
 
 export interface BlogPost {
@@ -228,6 +231,51 @@ export const DEFAULT_PAGE_SEO_CONFIGS: Record<string, PageSeoConfig> = {
     twitterCard: "summary_large_image",
     schemaType: "Article",
     author: "RankLynx Editorial Team",
+  },
+  "word-html": {
+    pageId: "word-html",
+    pageName: "Word to HTML & HTML to Word",
+    metaTitle: "Word to HTML & HTML to Word Converter — Clean MS Word Code | RankLynx",
+    metaDescription: "Convert Microsoft Word documents and rich text to clean HTML code or vice-versa. Strip mso bloat, convert smart quotes, clean inline styles, and export Word documents instantly.",
+    focusKeywords: "word to html, html to word, clean word html, wordhtml converter, strip mso styles",
+    secondaryKeywords: "convert doc to html, clean html code, rich text to html, visual html editor",
+    canonicalUrl: "https://ranklynx.com/#word-html",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1542744094-3a31f272c490?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "SoftwareApplication",
+    author: "RankLynx SEO Team",
+  },
+  "markdown-converter": {
+    pageId: "markdown-converter",
+    pageName: "Rich Text to Markdown Suite",
+    metaTitle: "Rich Text to Markdown & Markdown to Rich Text Converter | RankLynx",
+    metaDescription: "Bi-directional Rich Text to Markdown and Markdown to Rich Text converter with live split view, GFM task lists, tables, syntax highlighting, and HTML export.",
+    focusKeywords: "rich text to markdown, markdown to rich text, convert html to markdown, markdown editor",
+    secondaryKeywords: "github flavored markdown, markdown table generator, visual markdown converter",
+    canonicalUrl: "https://ranklynx.com/#markdown-converter",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "SoftwareApplication",
+    author: "RankLynx SEO Team",
+  },
+  "pdf-editor": {
+    pageId: "pdf-editor",
+    pageName: "Professional PDF Editor",
+    metaTitle: "Free PDF Editor Online — Edit, Add Text, Whiteout & Save Drafts | RankLynx",
+    metaDescription: "Edit any PDF document online without issues. Add text, whiteout/redact content, draw signatures, insert stamps, and save project drafts locally for later.",
+    focusKeywords: "pdf editor, edit pdf online, free pdf editor, redact pdf, sign pdf, add text to pdf",
+    secondaryKeywords: "pdf whiteout, fill pdf, annotate pdf online, save pdf drafts",
+    canonicalUrl: "https://ranklynx.com/#pdf-editor",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1568667256549-094345857637?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "SoftwareApplication",
+    author: "RankLynx SEO Team",
   },
 };
 

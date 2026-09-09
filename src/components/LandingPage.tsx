@@ -19,6 +19,9 @@ import {
   Sparkles,
   User as UserIcon,
   BookOpen,
+  FileCode,
+  Code2,
+  FileText,
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -130,6 +133,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         "Featured snippets, local pack & People Also Ask detection",
       ],
       cta: "Track Rankings",
+    },
+    {
+      id: "word-html" as ActiveTab,
+      name: "Word to HTML & HTML to Word",
+      tagline: "Bi-Directional WordHTML Engine",
+      description:
+        "Clean MS Word and Google Docs bloat, strip proprietary mso-* styles, smart quotes, and convert visual rich text to clean HTML code or download Word .doc files.",
+      icon: FileCode,
+      color: "text-blue-600 bg-blue-50 border-blue-100",
+      features: [
+        "Strip MS Office junk (<o:p>, MsoNormal, inline styles)",
+        "Live bi-directional split-view visual and HTML editing",
+        "Export clean .html or native Word document (.doc)",
+      ],
+      cta: "Convert Word & HTML",
+    },
+    {
+      id: "markdown-converter" as ActiveTab,
+      name: "Rich Text to Markdown Suite",
+      tagline: "Live Bi-Directional Markdown Suite",
+      description:
+        "Seamlessly convert rich formatted text into GitHub-flavored Markdown and vice-versa with live side-by-side editing, syntax highlighting, and table support.",
+      icon: Code2,
+      color: "text-indigo-600 bg-indigo-50 border-indigo-100",
+      features: [
+        "Bi-directional synchronization between Rich Text and GFM",
+        "Interactive tables, task checklists, and code blocks",
+        "Export to .md files or standalone styled HTML",
+      ],
+      cta: "Convert Markdown",
+    },
+    {
+      id: "pdf-editor" as ActiveTab,
+      name: "Professional PDF Editor",
+      tagline: "Annotate, Redact, Sign & Save Drafts",
+      description:
+        "Edit any PDF document without software installation. Place text overlays, whiteout/redact sensitive text, draw digital signatures, and save drafts locally for later.",
+      icon: FileText,
+      color: "text-rose-600 bg-rose-50 border-rose-100",
+      features: [
+        "Upload and edit any PDF file or start blank",
+        "Whiteout redaction boxes, text boxes, and handwritten signatures",
+        "Save project drafts in browser to resume editing anytime",
+      ],
+      cta: "Launch PDF Editor",
     },
   ];
 
