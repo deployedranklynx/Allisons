@@ -12,6 +12,11 @@ const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // Circuit-breaker state to prevent repetitive failed calls when project has 403/503
 let geminiAvailable = true;
 let lastGeminiCheck = 0;
@@ -720,42 +725,50 @@ async function checkSingleUrlDetailed(rawInput: string, options: CheckUrlOptions
       // If content-type is HTML and method is GET, parse title & meta tags from initial text chunk
       if (finalContentType.toLowerCase().includes("html") && methodToUse === "GET") {
         try {
-          // Read up to 45KB safely
-          const rawText = await res.text();
-          const sample = rawText.slice(0, 45000);
+          // Avoid reading huge bodies (> 2MB)
+          const contentLengthNum = parseInt(finalContentLength, 10);
+          if (isNaN(contentLengthNum) || contentLengthNum <= 2000000) {
+            // Read up to 45KB safely with a strict 2s timeout
+            const textPromise = res.text();
+            const timeoutPromise = new Promise<string>((_, reject) =>
+              setTimeout(() => reject(new Error("body timeout")), 2000)
+            );
+            const rawText = await Promise.race([textPromise, timeoutPromise]);
+            const sample = rawText.slice(0, 45000);
 
-          // Title
-          const titleMatch = sample.match(/<title[^>]*>([^<]+)<\/title>/i);
-          if (titleMatch) {
-            pageTitle = titleMatch[1].replace(/\s+/g, " ").trim();
-          }
-
-          // Meta robots if not already found in X-Robots-Tag
-          if (!metaRobots) {
-            const robotsMatch = sample.match(/<meta[^>]+name=["']robots["'][^>]+content=["']([^"']+)["']/i) ||
-                                sample.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']robots["']/i);
-            if (robotsMatch) {
-              metaRobots = robotsMatch[1].trim();
+            // Title
+            const titleMatch = sample.match(/<title[^>]*>([^<]+)<\/title>/i);
+            if (titleMatch) {
+              pageTitle = titleMatch[1].replace(/\s+/g, " ").trim();
             }
-          }
 
-          // Canonical tag in HTML
-          if (!canonicalUrl) {
-            const canonMatch = sample.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) ||
-                               sample.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
-            if (canonMatch) {
-              canonicalUrl = canonMatch[1].trim();
+            // Meta robots if not already found in X-Robots-Tag
+            if (!metaRobots) {
+              const robotsMatch = sample.match(/<meta[^>]+name=["']robots["'][^>]+content=["']([^"']+)["']/i) ||
+                                  sample.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']robots["']/i);
+              if (robotsMatch) {
+                metaRobots = robotsMatch[1].trim();
+              }
             }
-          }
 
-          // Meta description
-          const descMatch = sample.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
-                            sample.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
-          if (descMatch) {
-            metaDescription = descMatch[1].trim();
+            // Canonical tag in HTML
+            if (!canonicalUrl) {
+              const canonMatch = sample.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) ||
+                                 sample.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
+              if (canonMatch) {
+                canonicalUrl = canonMatch[1].trim();
+              }
+            }
+
+            // Meta description
+            const descMatch = sample.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                              sample.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+            if (descMatch) {
+              metaDescription = descMatch[1].trim();
+            }
           }
         } catch {
-          // Ignore body read error
+          // Ignore body read error or timeout
         }
       }
 

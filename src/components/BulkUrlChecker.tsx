@@ -79,6 +79,7 @@ export function BulkUrlChecker() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [results, setResults] = useState<BulkUrlCheckItem[]>([]);
   const [summary, setSummary] = useState<BulkUrlCheckSummary | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
 
   // Settings
   const [showSettings, setShowSettings] = useState(false);
@@ -99,13 +100,34 @@ export function BulkUrlChecker() {
   // Abort controller ref for cancel
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Parse URLs count from text
+  // Parse URLs count from text with flexible formatting (newlines, commas, spaces, quotes)
   const parsedUrls = useMemo(() => {
-    let list = inputText
-      .split("\n")
-      .map((line) => line.trim())
+    if (!inputText.trim()) return [];
+
+    // Split by newlines, commas, or semicolons
+    const tokens = inputText
+      .split(/[\r\n,;]+/)
+      .map((line) =>
+        line
+          .trim()
+          .replace(/^["'«“‘]+|["'»”’]+$/g, "")
+          .replace(/^[<(\[]+|[>)\]]+$/g, "")
+          .trim()
+      )
       .filter((line) => line.length > 0 && !line.startsWith("#"));
 
+    const expanded: string[] = [];
+    tokens.forEach((t) => {
+      // If a single line contains space-separated URLs
+      if (t.includes(" ") && (t.includes("http://") || t.includes("https://") || t.includes(".com") || t.includes(".org") || t.includes(".net"))) {
+        const sub = t.split(/\s+/).filter(Boolean);
+        expanded.push(...sub);
+      } else {
+        expanded.push(t);
+      }
+    });
+
+    let list = expanded;
     if (deduplicate) {
       list = Array.from(new Set(list));
     }
@@ -118,11 +140,12 @@ export function BulkUrlChecker() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Run Bulk Check
+  // Run Bulk Check with streaming batches and robust fallback
   const handleCheckUrls = async () => {
     if (parsedUrls.length === 0) return;
 
     setIsLoading(true);
+    setCheckError(null);
     setResults([]);
     setSummary(null);
     setProgress({ current: 0, total: parsedUrls.length });
@@ -130,8 +153,8 @@ export function BulkUrlChecker() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    // Process in batches of 15 for live streaming responsiveness
-    const batchSize = 15;
+    // Process in smaller batches of 8 for live streaming responsiveness
+    const batchSize = 8;
     const allCollected: BulkUrlCheckItem[] = [];
 
     try {
@@ -139,28 +162,84 @@ export function BulkUrlChecker() {
         if (controller.signal.aborted) break;
 
         const currentBatch = parsedUrls.slice(i, i + batchSize);
-        const res = await fetch("/api/seo/bulk-url-check", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: controller.signal,
-          body: JSON.stringify({
-            urls: currentBatch,
-            options: {
-              userAgent: selectedUserAgent,
-              method,
-              followRedirects,
-              timeoutMs: timeoutSeconds * 1000,
-              concurrency: 6,
-            },
-          }),
-        });
+        let batchResults: BulkUrlCheckItem[] = [];
 
-        if (!res.ok) {
-          throw new Error(`Server returned HTTP ${res.status}`);
+        try {
+          // Attempt primary endpoint
+          const res = await fetch("/api/seo/bulk-url-check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              urls: currentBatch,
+              options: {
+                userAgent: selectedUserAgent,
+                method,
+                followRedirects,
+                timeoutMs: timeoutSeconds * 1000,
+                concurrency: 4,
+              },
+            }),
+          });
+
+          if (!res.ok) {
+            // Attempt fallback alias endpoint
+            const fallbackRes = await fetch("/api/bulk-url-check", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              signal: controller.signal,
+              body: JSON.stringify({
+                urls: currentBatch,
+                options: {
+                  userAgent: selectedUserAgent,
+                  method,
+                  followRedirects,
+                  timeoutMs: timeoutSeconds * 1000,
+                  concurrency: 4,
+                },
+              }),
+            });
+
+            if (!fallbackRes.ok) {
+              throw new Error(`Server returned HTTP ${res.status}`);
+            }
+            const fbData = await fallbackRes.json();
+            batchResults = fbData.results || fbData.data || [];
+          } else {
+            const data = await res.json();
+            batchResults = data.results || data.data || [];
+          }
+        } catch (batchErr: any) {
+          if (controller.signal.aborted) break;
+          console.warn("Batch API error, synthesizing fallback items:", batchErr);
+
+          // If server fails or is unreachable, generate informative fallback items so user sees what failed
+          batchResults = currentBatch.map((u) => {
+            let normalized = u.trim();
+            if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+              normalized = "https://" + normalized;
+            }
+            return {
+              index: 0,
+              originalUrl: u,
+              normalizedUrl: normalized,
+              finalUrl: normalized,
+              statusCode: 0,
+              statusText: batchErr.message || "Network / Server unreachable",
+              statusGroup: "error" as const,
+              redirectCount: 0,
+              isRedirect: false,
+              redirectChain: [],
+              responseTimeMs: 0,
+              contentType: "-",
+              contentLength: "-",
+              server: "-",
+              isError: true,
+              errorMessage: batchErr.message || "Check request failed",
+              checkedAt: new Date().toISOString(),
+            };
+          });
         }
-
-        const data = await res.json();
-        const batchResults: BulkUrlCheckItem[] = data.results || [];
 
         // Adjust index to overall sequence
         const adjusted = batchResults.map((item, idx) => ({
@@ -173,7 +252,7 @@ export function BulkUrlChecker() {
         setProgress({ current: allCollected.length, total: parsedUrls.length });
       }
 
-      // Compute final summary
+      // Compute final aggregated summary
       let success2xx = 0;
       let redirect3xx = 0;
       let clientError4xx = 0;
@@ -202,6 +281,7 @@ export function BulkUrlChecker() {
     } catch (err: any) {
       if (err.name !== "AbortError") {
         console.error("Bulk check error:", err);
+        setCheckError(err.message || "An unexpected error occurred while checking URLs. Please check server status and try again.");
       }
     } finally {
       setIsLoading(false);
@@ -595,6 +675,33 @@ export function BulkUrlChecker() {
             className="w-full font-mono text-sm p-3.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 placeholder:text-slate-400 leading-relaxed"
           />
         </div>
+
+        {/* Error Alert Banner */}
+        {checkError && (
+          <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-rose-900">Check issue encountered</p>
+                <p className="text-xs text-rose-700 mt-0.5">{checkError}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleCheckUrls}
+                className="px-2.5 py-1 text-xs font-semibold bg-rose-600 text-white rounded hover:bg-rose-700 transition-colors"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => setCheckError(null)}
+                className="text-xs text-rose-600 hover:text-rose-900 font-medium px-1.5 py-1"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Action Button Strip */}
         <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
