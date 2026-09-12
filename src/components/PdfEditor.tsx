@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { PDFDocument, rgb, StandardFonts, degrees } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import {
   FileText,
   Upload,
@@ -30,6 +31,16 @@ import {
   Feather,
   Palette,
   Layers,
+  Search,
+  Replace,
+  Maximize2,
+  Edit3,
+  Highlighter,
+  Sliders,
+  HelpCircle,
+  Shield,
+  Copy,
+  CheckCircle2,
 } from "lucide-react";
 import {
   savePdfProjectToDb,
@@ -39,25 +50,47 @@ import {
   SavedPdfProject,
 } from "../lib/pdfStorage";
 
-// Setup PDF.js worker safely
-try {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-} catch (e) {
-  console.warn("Could not set PDF.js workerSrc CDN:", e);
+// ---------------------------------------------------------------------------
+// 1. POLYFILLS FOR PDF.JS V6 (Ensures 100% stability across all browser environments)
+// ---------------------------------------------------------------------------
+if (typeof (Promise as any).try !== "function") {
+  (Promise as any).try = function (fn: any, ...args: any[]) {
+    return new Promise((resolve) => resolve(fn(...args)));
+  };
+}
+if (typeof (Uint8Array.prototype as any).toHex !== "function") {
+  (Uint8Array.prototype as any).toHex = function () {
+    return Array.from(this as any)
+      .map((b: any) => b.toString(16).padStart(2, "0"))
+      .join("");
+  };
 }
 
-// Interfaces for editable elements on each page
+// Setup PDF.js worker safely with local bundled worker
+try {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    pdfjsWorker ||
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+} catch (e) {
+  console.warn("Could not set PDF.js workerSrc:", e);
+}
+
+// ---------------------------------------------------------------------------
+// 2. DATA INTERFACES
+// ---------------------------------------------------------------------------
 export interface TextOverlay {
   id: string;
   text: string;
   x: number; // percentage (0-100)
   y: number; // percentage (0-100)
-  fontSize: number; // pt (10 - 48)
+  fontSize: number; // pt (8 - 64)
   fontFamily: "Helvetica" | "Times" | "Courier";
   color: string;
   bgColor?: string;
   bold?: boolean;
   italic?: boolean;
+  isReplacement?: boolean; // Replaced an original text block
+  originalStr?: string;
 }
 
 export interface WhiteoutBox {
@@ -74,6 +107,7 @@ export interface FreehandDrawing {
   points: Array<{ x: number; y: number }>;
   color: string;
   width: number;
+  isHighlighter?: boolean;
 }
 
 export interface StampImage {
@@ -83,6 +117,21 @@ export interface StampImage {
   y: number; // percentage (0-100)
   width: number; // percentage (0-100)
   height: number; // percentage (0-100)
+}
+
+export interface DetectedOriginalText {
+  id: string;
+  str: string;
+  x: number; // percentage
+  y: number; // percentage
+  width: number; // percentage
+  height: number; // percentage
+  fontSize: number; // pt
+  fontFamily: "Helvetica" | "Times" | "Courier";
+  bold: boolean;
+  italic: boolean;
+  pdfX: number;
+  pdfY: number;
 }
 
 export interface PageState {
@@ -104,13 +153,42 @@ function hexToPdfRgb(hex: string) {
   return rgb(r, g, b);
 }
 
+// Helper to get matching standard font from pdfDoc
+async function getMatchingPdfFont(
+  pdfDoc: PDFDocument,
+  fontFamily: string,
+  bold?: boolean,
+  italic?: boolean
+) {
+  const fam = (fontFamily || "").toLowerCase();
+  if (fam.includes("times") || fam.includes("serif") || fam.includes("roman")) {
+    if (bold && italic) return await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
+    if (bold) return await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+    if (italic) return await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+    return await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  }
+  if (fam.includes("courier") || fam.includes("mono") || fam.includes("console")) {
+    if (bold && italic) return await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
+    if (bold) return await pdfDoc.embedFont(StandardFonts.CourierBold);
+    if (italic) return await pdfDoc.embedFont(StandardFonts.CourierOblique);
+    return await pdfDoc.embedFont(StandardFonts.Courier);
+  }
+  // Standard Sans-Serif (Helvetica / Arial)
+  if (bold && italic) return await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
+  if (bold) return await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  if (italic) return await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+  return await pdfDoc.embedFont(StandardFonts.Helvetica);
+}
+
 export const PdfEditor: React.FC = () => {
   // Document state
-  const [docName, setDocName] = useState<string>("Untitled Document.pdf");
+  const [docName, setDocName] = useState<string>("Document.pdf");
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const [pageCount, setPageCount] = useState<number>(1);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
-  const [zoomLevel, setZoomLevel] = useState<number>(100); // percentage
+  const [zoomLevel, setZoomLevel] = useState<number>(100); // 75, 100, 125, 150
+
+  // State of all modifications per page
   const [pagesData, setPagesData] = useState<PageState[]>([
     {
       pageIndex: 0,
@@ -122,14 +200,22 @@ export const PdfEditor: React.FC = () => {
     },
   ]);
 
-  // Selected tool: "select", "text", "whiteout", "draw", "stamp"
-  const [selectedTool, setSelectedTool] = useState<"select" | "text" | "whiteout" | "draw" | "stamp">("select");
+  // Detected text from original PDF page
+  const [detectedTexts, setDetectedTexts] = useState<DetectedOriginalText[]>([]);
+  const [showTextLayer, setShowTextLayer] = useState<boolean>(true);
+
+  // Selected tool: "edit-original" | "select" | "text" | "whiteout" | "draw" | "highlighter" | "stamp"
+  const [selectedTool, setSelectedTool] = useState<
+    "edit-original" | "select" | "text" | "whiteout" | "draw" | "highlighter" | "stamp"
+  >("edit-original");
 
   // Tool properties
-  const [textColor, setTextColor] = useState<string>("#1e293b");
+  const [textColor, setTextColor] = useState<string>("#0f172a");
   const [textFontSize, setTextFontSize] = useState<number>(14);
   const [textFontFamily, setTextFontFamily] = useState<"Helvetica" | "Times" | "Courier">("Helvetica");
-  const [textBgColor, setTextBgColor] = useState<string>("transparent");
+  const [textIsBold, setTextIsBold] = useState<boolean>(false);
+  const [textIsItalic, setTextIsItalic] = useState<boolean>(false);
+  const [textBgColor, setTextBgColor] = useState<string>("#ffffff");
 
   const [drawColor, setDrawColor] = useState<string>("#0984E3");
   const [drawWidth, setDrawWidth] = useState<number>(3);
@@ -139,6 +225,18 @@ export const PdfEditor: React.FC = () => {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [selectedElementType, setSelectedElementType] = useState<"text" | "whiteout" | "stamp" | null>(null);
 
+  // In-place text editor modal / popover
+  const [editingTarget, setEditingTarget] = useState<{
+    detectedText?: DetectedOriginalText;
+    existingOverlay?: TextOverlay;
+    currentValue: string;
+  } | null>(null);
+
+  // Find and Replace state
+  const [showFindReplace, setShowFindReplace] = useState<boolean>(false);
+  const [findQuery, setFindQuery] = useState<string>("");
+  const [replaceValue, setReplaceValue] = useState<string>("");
+
   // Status & Saved Drafts Modals
   const [savedDrafts, setSavedDrafts] = useState<SavedPdfProject[]>([]);
   const [showSavedDraftsModal, setShowSavedDraftsModal] = useState<boolean>(false);
@@ -147,7 +245,14 @@ export const PdfEditor: React.FC = () => {
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isRenderingPage, setIsRenderingPage] = useState<boolean>(false);
 
-  // Freehand drawing canvas refs
+  // Signature Pad state
+  const [sigMode, setSigMode] = useState<"draw" | "type">("draw");
+  const [typedSigName, setTypedSigName] = useState<string>("");
+  const [typedSigFont, setTypedSigFont] = useState<string>("cursive");
+  const sigPadCanvasRef = useRef<HTMLCanvasElement>(null);
+  const isSigDrawingRef = useRef<boolean>(false);
+
+  // Refs
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const pdfRenderCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -155,16 +260,12 @@ export const PdfEditor: React.FC = () => {
   const stampInputRef = useRef<HTMLInputElement>(null);
   const isDrawingRef = useRef<boolean>(false);
   const currentPathRef = useRef<Array<{ x: number; y: number }>>([]);
+  const currentRenderTaskRef = useRef<any>(null);
 
-  // Signature pad state
-  const sigPadCanvasRef = useRef<HTMLCanvasElement>(null);
-  const isSigDrawingRef = useRef<boolean>(false);
-
-  // Load existing drafts on mount
+  // Load existing drafts on mount & initialize sample document
   useEffect(() => {
     loadSavedDraftsList();
-    // Initialize default blank document
-    createBlankDocument();
+    loadSampleDocument();
   }, []);
 
   const loadSavedDraftsList = async () => {
@@ -176,116 +277,94 @@ export const PdfEditor: React.FC = () => {
     }
   };
 
-  // Helper to create a new blank PDF
-  const createBlankDocument = async () => {
-    try {
-      const newPdf = await PDFDocument.create();
-      newPdf.addPage([595.28, 841.89]); // Standard A4 points
-      const bytes = await newPdf.save();
-      setPdfBytes(bytes);
-      setDocName("New Document.pdf");
-      setPageCount(1);
-      setCurrentPageIndex(0);
-      setPagesData([
-        {
-          pageIndex: 0,
-          rotation: 0,
-          textOverlays: [
-            {
-              id: "sample-header",
-              text: "RankLynx PDF Document",
-              x: 10,
-              y: 8,
-              fontSize: 22,
-              fontFamily: "Helvetica",
-              color: "#0F172A",
-              bold: true,
-            },
-            {
-              id: "sample-body",
-              text: "Click anywhere to add text, use Whiteout to erase content, draw signatures, or upload any PDF to edit.",
-              x: 10,
-              y: 15,
-              fontSize: 12,
-              fontFamily: "Helvetica",
-              color: "#64748B",
-            },
-          ],
-          whiteouts: [],
-          drawings: [],
-          stamps: [],
-        },
-      ]);
-    } catch (err) {
-      console.error("Error creating blank document:", err);
-    }
-  };
-
-  // Load sample document (invoice / contract)
+  // Create sample invoice/agreement to show real in-place editing immediately
   const loadSampleDocument = async () => {
     try {
       const newPdf = await PDFDocument.create();
-      const page = newPdf.addPage([595.28, 841.89]);
-      const font = await newPdf.embedFont(StandardFonts.HelveticaBold);
-      page.drawText("SERVICE AGREEMENT & NDA", {
-        x: 50,
-        y: 780,
-        size: 20,
-        font,
+      const page = newPdf.addPage([595.28, 841.89]); // Standard A4 points
+      const helvBold = await newPdf.embedFont(StandardFonts.HelveticaBold);
+      const helvReg = await newPdf.embedFont(StandardFonts.Helvetica);
+      const timesBold = await newPdf.embedFont(StandardFonts.TimesRomanBold);
+      const timesReg = await newPdf.embedFont(StandardFonts.TimesRoman);
+
+      // Header Banner
+      page.drawRectangle({
+        x: 40,
+        y: 750,
+        width: 515,
+        height: 50,
         color: rgb(0.06, 0.52, 0.89),
       });
 
-      const regularFont = await newPdf.embedFont(StandardFonts.Helvetica);
-      page.drawText("Document Reference: #RL-2026-9871", {
-        x: 50,
-        y: 750,
-        size: 11,
-        font: regularFont,
-        color: rgb(0.4, 0.45, 0.5),
+      page.drawText("SEO AUDIT & TECHNICAL SERVICE AGREEMENT", {
+        x: 55,
+        y: 768,
+        size: 16,
+        font: helvBold,
+        color: rgb(1, 1, 1),
       });
 
-      page.drawRectangle({
+      page.drawText("Client Name: Apex Media Global", {
         x: 50,
-        y: 720,
-        width: 495,
-        height: 1,
-        color: rgb(0.85, 0.88, 0.9),
-      });
-
-      page.drawText("1. SCOPE OF SEARCH ENGINE OPTIMIZATION SERVICES", {
-        x: 50,
-        y: 690,
-        size: 13,
-        font,
+        y: 700,
+        size: 12,
+        font: helvBold,
         color: rgb(0.1, 0.15, 0.2),
+      });
+
+      page.drawText("Document Date: September 12, 2026", {
+        x: 50,
+        y: 675,
+        size: 11,
+        font: helvReg,
+        color: rgb(0.3, 0.35, 0.4),
+      });
+
+      page.drawText("Invoice Amount: $1,450.00 USD", {
+        x: 50,
+        y: 650,
+        size: 12,
+        font: helvBold,
+        color: rgb(0.12, 0.63, 0.35),
+      });
+
+      page.drawText("Deliverables & Scope of Work:", {
+        x: 50,
+        y: 605,
+        size: 13,
+        font: timesBold,
+        color: rgb(0.15, 0.18, 0.22),
       });
 
       page.drawText(
-        "The Consultant agrees to deliver complete technical auditing, on-page optimization,\nand high-authority backlink outreach as outlined in Exhibit A.",
+        "1. Full technical crawling of 150,000 indexable pages for broken links and 301 redirect chains.\n" +
+          "2. Core Web Vitals remediation including LCP, CLS, and INP metrics.\n" +
+          "3. High authority domain outreach with Moz DA 60+ and Ahrefs DR 65+ tier.\n" +
+          "4. Bi-weekly keyword position tracking and ranking volatility reports.",
         {
           x: 50,
-          y: 660,
-          size: 11,
-          font: regularFont,
+          y: 575,
+          size: 10.5,
+          font: timesReg,
           color: rgb(0.2, 0.25, 0.3),
-          lineHeight: 16,
+          lineHeight: 18,
         }
       );
 
-      page.drawText("Authorized Representative:", {
+      page.drawText("Authorized Signatory: __________________________", {
         x: 50,
-        y: 540,
+        y: 440,
         size: 11,
-        font,
-        color: rgb(0.1, 0.15, 0.2),
+        font: helvReg,
+        color: rgb(0.3, 0.35, 0.4),
       });
 
-      page.drawText("Date of Execution: ____________________", {
+      page.drawText("Status: Approved & Active", {
         x: 50,
-        y: 480,
+        y: 410,
         size: 11,
-        font: regularFont,
-        color: rgb(0.3, 0.35, 0.4),
+        font: helvBold,
+        color: rgb(0.08, 0.55, 0.3),
       });
 
       const bytes = await newPdf.save();
@@ -297,39 +376,104 @@ export const PdfEditor: React.FC = () => {
         {
           pageIndex: 0,
           rotation: 0,
-          textOverlays: [
-            {
-              id: "client-name",
-              text: "[Client Name: TechCorp Global]",
-              x: 10,
-              y: 42,
-              fontSize: 12,
-              fontFamily: "Helvetica",
-              color: "#0984E3",
-              bold: true,
-            },
-          ],
+          textOverlays: [],
           whiteouts: [],
           drawings: [],
           stamps: [],
         },
       ]);
-      setStatusMsg("Loaded sample editable PDF agreement.");
-      setTimeout(() => setStatusMsg(null), 3000);
     } catch (err) {
-      console.error("Failed to load sample:", err);
+      console.error("Error creating sample document:", err);
     }
   };
 
-  // Render current PDF page using PDF.js onto the background canvas
+  // Helper to create a new blank PDF
+  const createBlankDocument = async () => {
+    try {
+      const newPdf = await PDFDocument.create();
+      newPdf.addPage([595.28, 841.89]);
+      const bytes = await newPdf.save();
+      setPdfBytes(bytes);
+      setDocName("New_Blank_Document.pdf");
+      setPageCount(1);
+      setCurrentPageIndex(0);
+      setPagesData([
+        {
+          pageIndex: 0,
+          rotation: 0,
+          textOverlays: [],
+          whiteouts: [],
+          drawings: [],
+          stamps: [],
+        },
+      ]);
+      setDetectedTexts([]);
+      setStatusMsg("Created new blank document.");
+      setTimeout(() => setStatusMsg(null), 2500);
+    } catch (err) {
+      console.error("Error creating blank document:", err);
+    }
+  };
+
+  // Handle PDF upload from user device
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      // Verify with PDFDocument
+      const pdfDoc = await PDFDocument.load(bytes);
+      const total = pdfDoc.getPageCount();
+
+      setPdfBytes(bytes);
+      setDocName(file.name);
+      setPageCount(total);
+      setCurrentPageIndex(0);
+
+      // Initialize empty overlays for each page
+      const initialPages: PageState[] = [];
+      for (let i = 0; i < total; i++) {
+        initialPages.push({
+          pageIndex: i,
+          rotation: 0,
+          textOverlays: [],
+          whiteouts: [],
+          drawings: [],
+          stamps: [],
+        });
+      }
+      setPagesData(initialPages);
+      setStatusMsg(`Loaded "${file.name}" (${total} pages). Click any text to edit!`);
+      setTimeout(() => setStatusMsg(null), 4000);
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      alert("Failed to parse uploaded PDF: " + (err?.message || "Invalid PDF file"));
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // 3. ROBUST PDF RENDER & ORIGINAL TEXT DETECTION
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!pdfBytes) return;
 
     let isCancelled = false;
-    const renderPage = async () => {
+
+    const renderPageAndDetectText = async () => {
       try {
         setIsRenderingPage(true);
-        // Load document into PDF.js
+
+        // Cancel previous render if any
+        if (currentRenderTaskRef.current) {
+          try {
+            currentRenderTaskRef.current.cancel();
+          } catch {}
+          currentRenderTaskRef.current = null;
+        }
+
         const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice() });
         const pdfDoc = await loadingTask.promise;
 
@@ -345,40 +489,113 @@ export const PdfEditor: React.FC = () => {
         const context = canvas.getContext("2d");
         if (!context) return;
 
-        // Calculate scale based on standard A4 width (~800px display width)
-        const viewport = page.getViewport({ scale: 1.5 });
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        // Calculate scale based on zoom level (base scale 1.4 for crisp display)
+        const baseScale = 1.4 * (zoomLevel / 100);
+        const viewport = page.getViewport({ scale: baseScale });
 
-        // Match drawing overlay canvas dimensions exactly
+        // High DPI canvas rendering for razor-sharp text
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = viewport.width * dpr;
+        canvas.height = viewport.height * dpr;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+
+        context.scale(dpr, dpr);
+
+        // Match drawing overlay canvas dimensions
         if (drawingCanvasRef.current) {
           drawingCanvasRef.current.width = viewport.width;
           drawingCanvasRef.current.height = viewport.height;
+          drawingCanvasRef.current.style.width = `${viewport.width}px`;
+          drawingCanvasRef.current.style.height = `${viewport.height}px`;
           redrawCurrentDrawings();
         }
 
         const renderContext = {
           canvasContext: context,
           viewport: viewport,
-          canvas: canvas,
         };
 
-        await (page.render(renderContext as any)).promise;
-      } catch (err) {
-        console.warn("PDF.js render fallback:", err);
+        const renderTask = page.render(renderContext as any);
+        currentRenderTaskRef.current = renderTask;
+
+        await renderTask.promise;
+        currentRenderTaskRef.current = null;
+
+        // EXTRACT ALL ORIGINAL TEXT ON THE PAGE
+        const textContent = await page.getTextContent();
+        const extracted: DetectedOriginalText[] = [];
+
+        // Page PDF dimensions
+        const { width: pWidth, height: pHeight } = page.getViewport({ scale: 1.0 });
+
+        textContent.items.forEach((item: any, idx: number) => {
+          if (!item.str || item.str.trim().length === 0) return;
+
+          // In PDF transform: item.transform = [scaleX, skewY, skewX, scaleY, tx, ty]
+          const tx = item.transform[4];
+          const ty = item.transform[5];
+          const fontSizePt = Math.hypot(item.transform[0], item.transform[1]) || 12;
+
+          // Convert to percentage of page
+          const xPercent = Math.max(0, (tx / pWidth) * 100);
+          // In PDF, ty is from bottom. Top = pHeight - ty - fontSizePt
+          const yPercent = Math.max(0, ((pHeight - ty - fontSizePt * 0.85) / pHeight) * 100);
+          const widthPercent = Math.min(100, (item.width / pWidth) * 100);
+          const heightPercent = Math.min(20, (fontSizePt * 1.3 / pHeight) * 100);
+
+          const fontName = (item.fontName || "").toLowerCase();
+          let family: "Helvetica" | "Times" | "Courier" = "Helvetica";
+          if (fontName.includes("times") || fontName.includes("serif") || fontName.includes("roman")) {
+            family = "Times";
+          } else if (fontName.includes("courier") || fontName.includes("mono")) {
+            family = "Courier";
+          }
+
+          const isBold = fontName.includes("bold") || fontName.includes("black") || fontName.includes("heavy");
+          const isItalic = fontName.includes("italic") || fontName.includes("oblique");
+
+          extracted.push({
+            id: `orig-${currentPageIndex}-${idx}`,
+            str: item.str,
+            x: xPercent,
+            y: yPercent,
+            width: Math.max(widthPercent, 1.5),
+            height: Math.max(heightPercent, 2.0),
+            fontSize: Math.round(fontSizePt),
+            fontFamily: family,
+            bold: isBold,
+            italic: isItalic,
+            pdfX: tx,
+            pdfY: ty,
+          });
+        });
+
+        if (!isCancelled) {
+          setDetectedTexts(extracted);
+        }
+      } catch (err: any) {
+        if (err?.name !== "RenderingCancelledException") {
+          console.warn("PDF render fallback:", err);
+        }
       } finally {
         if (!isCancelled) setIsRenderingPage(false);
       }
     };
 
-    renderPage();
+    renderPageAndDetectText();
 
     return () => {
       isCancelled = true;
+      if (currentRenderTaskRef.current) {
+        try {
+          currentRenderTaskRef.current.cancel();
+        } catch {}
+      }
     };
-  }, [pdfBytes, currentPageIndex]);
+  }, [pdfBytes, currentPageIndex, zoomLevel]);
 
-  // Redraw existing freehand drawings for the current page onto drawingCanvasRef
+  // Redraw drawings on overlay canvas
   const redrawCurrentDrawings = () => {
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
@@ -398,7 +615,12 @@ export const PdfEditor: React.FC = () => {
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
-      // Convert percentage coordinates back to pixel coordinates
+      if (drawing.isHighlighter) {
+        ctx.globalAlpha = 0.45;
+      } else {
+        ctx.globalAlpha = 1.0;
+      }
+
       const first = drawing.points[0];
       ctx.moveTo((first.x / 100) * canvas.width, (first.y / 100) * canvas.height);
 
@@ -407,10 +629,10 @@ export const PdfEditor: React.FC = () => {
         ctx.lineTo((pt.x / 100) * canvas.width, (pt.y / 100) * canvas.height);
       }
       ctx.stroke();
+      ctx.globalAlpha = 1.0;
     });
   };
 
-  // Redraw whenever pagesData or currentPageIndex changes
   useEffect(() => {
     redrawCurrentDrawings();
   }, [pagesData, currentPageIndex]);
@@ -419,7 +641,7 @@ export const PdfEditor: React.FC = () => {
   const getCurrentPage = (): PageState => {
     const found = pagesData.find((p) => p.pageIndex === currentPageIndex);
     if (found) return found;
-    const newPage: PageState = {
+    return {
       pageIndex: currentPageIndex,
       rotation: 0,
       textOverlays: [],
@@ -427,75 +649,197 @@ export const PdfEditor: React.FC = () => {
       drawings: [],
       stamps: [],
     };
-    setPagesData((prev) => [...prev, newPage]);
-    return newPage;
   };
 
   const updateCurrentPage = (updater: (prev: PageState) => PageState) => {
     setPagesData((prev) => {
-      const exists = prev.some((p) => p.pageIndex === currentPageIndex);
-      if (!exists) {
-        const fresh: PageState = {
+      const idx = prev.findIndex((p) => p.pageIndex === currentPageIndex);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = updater(copy[idx]);
+        return copy;
+      } else {
+        const newP = updater({
           pageIndex: currentPageIndex,
           rotation: 0,
           textOverlays: [],
           whiteouts: [],
           drawings: [],
           stamps: [],
-        };
-        return [...prev, updater(fresh)];
+        });
+        return [...prev, newP];
       }
-      return prev.map((p) => (p.pageIndex === currentPageIndex ? updater(p) : p));
     });
   };
 
-  // Upload user's PDF
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // ---------------------------------------------------------------------------
+  // 4. IN-PLACE ORIGINAL TEXT EDITING ENGINE ("jo font ho wo hi rhe")
+  // ---------------------------------------------------------------------------
+  const handleStartEditOriginalText = (item: DetectedOriginalText) => {
+    // Open in-place editor with matching font, size, and style preloaded
+    setTextFontFamily(item.fontFamily);
+    setTextFontSize(item.fontSize);
+    setTextIsBold(item.bold);
+    setTextIsItalic(item.italic);
 
-    try {
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-
-      // Verify with pdf-lib
-      const loadedDoc = await PDFDocument.load(bytes);
-      const totalPages = loadedDoc.getPageCount();
-
-      setPdfBytes(bytes);
-      setDocName(file.name);
-      setPageCount(totalPages);
-      setCurrentPageIndex(0);
-
-      // Initialize empty overlays for each page
-      const initPages: PageState[] = [];
-      for (let i = 0; i < totalPages; i++) {
-        initPages.push({
-          pageIndex: i,
-          rotation: 0,
-          textOverlays: [],
-          whiteouts: [],
-          drawings: [],
-          stamps: [],
-        });
-      }
-      setPagesData(initPages);
-      setStatusMsg(`Successfully loaded "${file.name}" (${totalPages} pages)`);
-      setTimeout(() => setStatusMsg(null), 3500);
-    } catch (err) {
-      console.error("Failed to load PDF:", err);
-      alert("Failed to parse PDF file. Please ensure it is a valid, uncorrupted PDF.");
-    }
+    setEditingTarget({
+      detectedText: item,
+      currentValue: item.str,
+    });
   };
 
-  // Click on PDF Canvas Container: Handle placing new text box or whiteout
-  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (selectedTool === "select") return;
+  const handleApplyTextReplacement = () => {
+    if (!editingTarget) return;
 
-    const container = pageContainerRef.current;
-    if (!container) return;
+    const { detectedText, existingOverlay, currentValue } = editingTarget;
 
-    const rect = container.getBoundingClientRect();
+    if (detectedText) {
+      // Create exact background whiteout box to completely mask the original text underneath
+      const paddingX = 0.4;
+      const paddingY = 0.4;
+      const maskBox: WhiteoutBox = {
+        id: `mask-${detectedText.id}`,
+        x: Math.max(0, detectedText.x - paddingX),
+        y: Math.max(0, detectedText.y - paddingY),
+        width: Math.min(100, detectedText.width + paddingX * 2),
+        height: Math.min(100, detectedText.height + paddingY * 2),
+        color: whiteoutColor || "#ffffff",
+      };
+
+      // Create new text overlay positioned at exact baseline and font match
+      const newOverlay: TextOverlay = {
+        id: `text-rep-${Date.now()}`,
+        text: currentValue,
+        x: detectedText.x,
+        y: detectedText.y,
+        fontSize: textFontSize,
+        fontFamily: textFontFamily,
+        color: textColor,
+        bold: textIsBold,
+        italic: textIsItalic,
+        bgColor: "transparent",
+        isReplacement: true,
+        originalStr: detectedText.str,
+      };
+
+      updateCurrentPage((prev) => ({
+        ...prev,
+        // Add whiteout first so it sits beneath
+        whiteouts: [...prev.whiteouts, maskBox],
+        textOverlays: [...prev.textOverlays, newOverlay],
+      }));
+
+      setStatusMsg(`Replaced "${detectedText.str}" with matching ${textFontFamily} font!`);
+      setTimeout(() => setStatusMsg(null), 3000);
+    } else if (existingOverlay) {
+      // Updating an already created overlay
+      updateCurrentPage((prev) => ({
+        ...prev,
+        textOverlays: prev.textOverlays.map((t) =>
+          t.id === existingOverlay.id
+            ? {
+                ...t,
+                text: currentValue,
+                fontSize: textFontSize,
+                fontFamily: textFontFamily,
+                color: textColor,
+                bold: textIsBold,
+                italic: textIsItalic,
+              }
+            : t
+        ),
+      }));
+    }
+
+    setEditingTarget(null);
+  };
+
+  // Erase detected text with one click
+  const handleQuickEraseText = (item: DetectedOriginalText) => {
+    const maskBox: WhiteoutBox = {
+      id: `mask-${item.id}`,
+      x: Math.max(0, item.x - 0.4),
+      y: Math.max(0, item.y - 0.4),
+      width: Math.min(100, item.width + 0.8),
+      height: Math.min(100, item.height + 0.8),
+      color: whiteoutColor || "#ffffff",
+    };
+
+    updateCurrentPage((prev) => ({
+      ...prev,
+      whiteouts: [...prev.whiteouts, maskBox],
+    }));
+
+    setStatusMsg(`Erased "${item.str}" with clean background mask.`);
+    setTimeout(() => setStatusMsg(null), 2500);
+  };
+
+  // ---------------------------------------------------------------------------
+  // 5. GLOBAL FIND & REPLACE ENGINE
+  // ---------------------------------------------------------------------------
+  const handleFindAndReplaceAll = () => {
+    if (!findQuery.trim()) return;
+
+    const matches = detectedTexts.filter((t) =>
+      t.str.toLowerCase().includes(findQuery.toLowerCase())
+    );
+
+    if (matches.length === 0) {
+      alert(`No occurrences of "${findQuery}" found on page ${currentPageIndex + 1}.`);
+      return;
+    }
+
+    const newWhiteouts: WhiteoutBox[] = [];
+    const newTextOverlays: TextOverlay[] = [];
+
+    matches.forEach((item) => {
+      // Case insensitive replacement
+      const regex = new RegExp(findQuery, "gi");
+      const replacedText = item.str.replace(regex, replaceValue);
+
+      newWhiteouts.push({
+        id: `mask-fr-${item.id}-${Date.now()}`,
+        x: Math.max(0, item.x - 0.4),
+        y: Math.max(0, item.y - 0.4),
+        width: Math.min(100, item.width + 0.8),
+        height: Math.min(100, item.height + 0.8),
+        color: whiteoutColor || "#ffffff",
+      });
+
+      newTextOverlays.push({
+        id: `text-fr-${item.id}-${Date.now()}`,
+        text: replacedText,
+        x: item.x,
+        y: item.y,
+        fontSize: item.fontSize,
+        fontFamily: item.fontFamily,
+        color: textColor,
+        bold: item.bold,
+        italic: item.italic,
+        isReplacement: true,
+        originalStr: item.str,
+      });
+    });
+
+    updateCurrentPage((prev) => ({
+      ...prev,
+      whiteouts: [...prev.whiteouts, ...newWhiteouts],
+      textOverlays: [...prev.textOverlays, ...newTextOverlays],
+    }));
+
+    setStatusMsg(`Replaced ${matches.length} instances of "${findQuery}" with "${replaceValue}"!`);
+    setTimeout(() => setStatusMsg(null), 3500);
+  };
+
+  // ---------------------------------------------------------------------------
+  // 6. CANVAS CLICKS & DRAWING INTERACTIONS
+  // ---------------------------------------------------------------------------
+  const handleCanvasContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (selectedTool === "select" || selectedTool === "edit-original") return;
+
+    const rect = pageContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
 
@@ -505,13 +849,15 @@ export const PdfEditor: React.FC = () => {
     if (selectedTool === "text") {
       const newText: TextOverlay = {
         id: `text-${Date.now()}`,
-        text: "Click to edit text",
+        text: "New Text Box",
         x: Math.round(xPercent),
         y: Math.round(yPercent),
         fontSize: textFontSize,
         fontFamily: textFontFamily,
         color: textColor,
-        bgColor: textBgColor !== "transparent" ? textBgColor : undefined,
+        bold: textIsBold,
+        italic: textIsItalic,
+        bgColor: textBgColor,
       };
 
       updateCurrentPage((prev) => ({
@@ -541,9 +887,9 @@ export const PdfEditor: React.FC = () => {
     }
   };
 
-  // Drawing Canvas mouse events (Freehand pen/highlighter)
+  // Freehand Pen / Highlighter events
   const handleDrawingMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (selectedTool !== "draw") return;
+    if (selectedTool !== "draw" && selectedTool !== "highlighter") return;
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
 
@@ -556,7 +902,7 @@ export const PdfEditor: React.FC = () => {
   };
 
   const handleDrawingMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawingRef.current || selectedTool !== "draw") return;
+    if (!isDrawingRef.current || (selectedTool !== "draw" && selectedTool !== "highlighter")) return;
     const canvas = drawingCanvasRef.current;
     if (!canvas) return;
 
@@ -569,11 +915,12 @@ export const PdfEditor: React.FC = () => {
 
     currentPathRef.current.push({ x, y });
 
-    // Live stroke
-    ctx.strokeStyle = drawColor;
-    ctx.lineWidth = drawWidth;
+    const isHigh = selectedTool === "highlighter";
+    ctx.strokeStyle = isHigh ? "#FDE047" : drawColor;
+    ctx.lineWidth = isHigh ? 16 : drawWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+    ctx.globalAlpha = isHigh ? 0.4 : 1.0;
 
     const pts = currentPathRef.current;
     if (pts.length > 1) {
@@ -584,18 +931,21 @@ export const PdfEditor: React.FC = () => {
       ctx.lineTo((p2.x / 100) * canvas.width, (p2.y / 100) * canvas.height);
       ctx.stroke();
     }
+    ctx.globalAlpha = 1.0;
   };
 
   const handleDrawingMouseUp = () => {
-    if (!isDrawingRef.current || selectedTool !== "draw") return;
+    if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
 
     if (currentPathRef.current.length > 1) {
+      const isHigh = selectedTool === "highlighter";
       const newDrawing: FreehandDrawing = {
         id: `draw-${Date.now()}`,
         points: [...currentPathRef.current],
-        color: drawColor,
-        width: drawWidth,
+        color: isHigh ? "#FDE047" : drawColor,
+        width: isHigh ? 16 : drawWidth,
+        isHighlighter: isHigh,
       };
 
       updateCurrentPage((prev) => ({
@@ -618,10 +968,10 @@ export const PdfEditor: React.FC = () => {
         const newStamp: StampImage = {
           id: `stamp-${Date.now()}`,
           imageUrl: dataUrl,
-          x: 20,
-          y: 20,
-          width: 25,
-          height: 15,
+          x: 25,
+          y: 25,
+          width: 28,
+          height: 14,
         };
 
         updateCurrentPage((prev) => ({
@@ -636,26 +986,48 @@ export const PdfEditor: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  // Add signature image from Signature Pad
-  const handleSaveSignature = (sigDataUrl: string) => {
-    const newStamp: StampImage = {
-      id: `sig-${Date.now()}`,
-      imageUrl: sigDataUrl,
-      x: 35,
-      y: 65,
-      width: 30,
-      height: 12,
-    };
+  // Signature Pad creation
+  const handleApplySignature = () => {
+    let sigDataUrl = "";
 
-    updateCurrentPage((prev) => ({
-      ...prev,
-      stamps: [...prev.stamps, newStamp],
-    }));
-    setSelectedElementId(newStamp.id);
-    setSelectedElementType("stamp");
-    setShowSignatureModal(false);
-    setStatusMsg("Signature placed! You can drag and position it anywhere.");
-    setTimeout(() => setStatusMsg(null), 3500);
+    if (sigMode === "draw") {
+      const canvas = sigPadCanvasRef.current;
+      if (!canvas) return;
+      sigDataUrl = canvas.toDataURL("image/png");
+    } else {
+      // Render typed cursive signature to canvas
+      const canvas = document.createElement("canvas");
+      canvas.width = 450;
+      canvas.height = 150;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.font = "italic 48px 'Brush Script MT', 'Dancing Script', cursive, sans-serif";
+        ctx.fillStyle = "#0F172A";
+        ctx.fillText(typedSigName || "Signature", 30, 90);
+        sigDataUrl = canvas.toDataURL("image/png");
+      }
+    }
+
+    if (sigDataUrl) {
+      const newStamp: StampImage = {
+        id: `sig-${Date.now()}`,
+        imageUrl: sigDataUrl,
+        x: 35,
+        y: 65,
+        width: 30,
+        height: 12,
+      };
+
+      updateCurrentPage((prev) => ({
+        ...prev,
+        stamps: [...prev.stamps, newStamp],
+      }));
+      setSelectedElementId(newStamp.id);
+      setSelectedElementType("stamp");
+      setShowSignatureModal(false);
+      setStatusMsg("Signature inserted! Drag and position it wherever needed.");
+      setTimeout(() => setStatusMsg(null), 3500);
+    }
   };
 
   // Page Operations
@@ -664,7 +1036,7 @@ export const PdfEditor: React.FC = () => {
       ...prev,
       rotation: (prev.rotation + 90) % 360,
     }));
-    setStatusMsg("Page rotated 90 degrees.");
+    setStatusMsg("Page rotated 90°.");
     setTimeout(() => setStatusMsg(null), 2000);
   };
 
@@ -690,7 +1062,7 @@ export const PdfEditor: React.FC = () => {
         },
       ]);
       setCurrentPageIndex(newTotal - 1);
-      setStatusMsg(`Added new blank page (Page ${newTotal}).`);
+      setStatusMsg(`Added new blank page (${newTotal} of ${newTotal}).`);
       setTimeout(() => setStatusMsg(null), 2500);
     } catch (err) {
       console.error("Failed to add blank page:", err);
@@ -713,7 +1085,6 @@ export const PdfEditor: React.FC = () => {
       const newTotal = pageCount - 1;
       setPageCount(newTotal);
 
-      // Re-index pagesData
       setPagesData((prev) =>
         prev
           .filter((p) => p.pageIndex !== currentPageIndex)
@@ -733,7 +1104,6 @@ export const PdfEditor: React.FC = () => {
     if (!pdfBytes) return;
 
     try {
-      // Convert pdfBytes to base64 data URL
       let binary = "";
       const len = pdfBytes.byteLength;
       for (let i = 0; i < len; i++) {
@@ -764,7 +1134,6 @@ export const PdfEditor: React.FC = () => {
   // Open saved draft
   const handleOpenDraft = async (draft: SavedPdfProject) => {
     try {
-      // Decode base64 PDF
       const base64 = draft.pdfDataUrl.split(",")[1];
       const binaryString = window.atob(base64);
       const len = binaryString.length;
@@ -787,15 +1156,9 @@ export const PdfEditor: React.FC = () => {
     }
   };
 
-  // Delete saved draft
-  const handleDeleteDraft = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm("Delete this saved draft?")) return;
-    await deleteSavedPdfProject(id);
-    await loadSavedDraftsList();
-  };
-
-  // Export / Compile Final PDF with pdf-lib ("bina kisi issues ke save kr skhu")
+  // ---------------------------------------------------------------------------
+  // 7. EXPORT COMPILED PDF WITH EMBEDDED FONTS & MASKS (`pdf-lib`)
+  // ---------------------------------------------------------------------------
   const handleExportPdf = async () => {
     if (!pdfBytes) return;
 
@@ -804,30 +1167,22 @@ export const PdfEditor: React.FC = () => {
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const pages = pdfDoc.getPages();
 
-      // Embed standard fonts
-      const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-      const timesFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-      const courierFont = await pdfDoc.embedFont(StandardFonts.Courier);
-
-      // Iterate through all pages and bake overlays
       for (let pIdx = 0; pIdx < pages.length; pIdx++) {
         const page = pages[pIdx];
         const { width: pWidth, height: pHeight } = page.getSize();
         const pageData = pagesData.find((p) => p.pageIndex === pIdx);
         if (!pageData) continue;
 
-        // Apply rotation if any
         if (pageData.rotation) {
           page.setRotation(degrees(pageData.rotation));
         }
 
-        // 1. Draw Whiteouts / Redactions FIRST so text overlays can sit on top
+        // 1. Draw Whiteout / Redaction Masks FIRST (covers original text seamlessly)
         for (const w of pageData.whiteouts) {
           const wWidth = (w.width / 100) * pWidth;
           const wHeight = (w.height / 100) * pHeight;
           const x = (w.x / 100) * pWidth;
-          // In PDF, Y=0 is at bottom!
+          // In PDF, Y=0 is bottom
           const y = pHeight - (w.y / 100) * pHeight - wHeight;
 
           page.drawRectangle({
@@ -839,11 +1194,11 @@ export const PdfEditor: React.FC = () => {
           });
         }
 
-        // 2. Draw Stamps and Signatures (PNG / JPEG images)
+        // 2. Draw Stamps and Signatures (PNG / JPG)
         for (const s of pageData.stamps) {
           try {
             let embeddedImg;
-            if (s.imageUrl.includes("image/png")) {
+            if (s.imageUrl.includes("image/png") || s.imageUrl.includes("data:image/png")) {
               const base64Data = s.imageUrl.split(",")[1];
               const imgBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
               embeddedImg = await pdfDoc.embedPng(imgBytes);
@@ -869,25 +1224,26 @@ export const PdfEditor: React.FC = () => {
           }
         }
 
-        // 3. Draw Text Overlays
+        // 3. Draw Text Overlays with exact matching embedded fonts
         for (const t of pageData.textOverlays) {
-          let fontToUse = helveticaFont;
-          if (t.fontFamily === "Times") fontToUse = timesFont;
-          else if (t.fontFamily === "Courier") fontToUse = courierFont;
-          else if (t.bold) fontToUse = helveticaBold;
+          const fontToUse = await getMatchingPdfFont(
+            pdfDoc,
+            t.fontFamily,
+            t.bold,
+            t.italic
+          );
 
           const x = (t.x / 100) * pWidth;
-          // Calculate PDF y coordinate (top to bottom inverted)
-          const y = pHeight - (t.y / 100) * pHeight - t.fontSize;
+          // Invert y from top to PDF bottom
+          const y = pHeight - (t.y / 100) * pHeight - t.fontSize * 0.9;
 
-          // If text has a background color, draw background box
           if (t.bgColor && t.bgColor !== "transparent") {
             const textWidth = fontToUse.widthOfTextAtSize(t.text, t.fontSize);
             page.drawRectangle({
-              x: x - 4,
+              x: x - 2,
               y: y - 2,
-              width: textWidth + 8,
-              height: t.fontSize + 6,
+              width: textWidth + 4,
+              height: t.fontSize + 4,
               color: hexToPdfRgb(t.bgColor),
             });
           }
@@ -902,10 +1258,8 @@ export const PdfEditor: React.FC = () => {
         }
       }
 
-      // Save modified PDF
       const finalPdfBytes = await pdfDoc.save();
 
-      // Trigger browser download
       const blob = new Blob([finalPdfBytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -914,7 +1268,7 @@ export const PdfEditor: React.FC = () => {
       a.click();
       URL.revokeObjectURL(url);
 
-      setStatusMsg("PDF compiled & downloaded successfully!");
+      setStatusMsg("PDF compiled & downloaded successfully with matching fonts!");
       setTimeout(() => setStatusMsg(null), 3500);
     } catch (err) {
       console.error("PDF export error:", err);
@@ -924,34 +1278,12 @@ export const PdfEditor: React.FC = () => {
     }
   };
 
-  // Print PDF directly
-  const handlePrintPdf = async () => {
-    if (!pdfBytes) return;
-    try {
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = url;
-      document.body.appendChild(iframe);
-      iframe.onload = () => {
-        iframe.contentWindow?.print();
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          URL.revokeObjectURL(url);
-        }, 1000);
-      };
-    } catch {
-      window.print();
-    }
-  };
-
   const currentPage = getCurrentPage();
 
   return (
-    <div className="space-y-5">
-      {/* Top Header & Project Bar */}
-      <div className="bg-white border border-[#E9ECEF] rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4">
+      {/* Top Header & Document Title Bar */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
@@ -961,15 +1293,17 @@ export const PdfEditor: React.FC = () => {
               type="text"
               value={docName}
               onChange={(e) => setDocName(e.target.value)}
-              className="text-lg font-bold text-[#0F172A] bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#0984E3] focus:outline-none transition-colors"
+              className="text-lg font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none transition-colors"
               title="Click to rename document"
             />
-            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-              PDF Editor Pro
+            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              <span>100% In-Place Editor</span>
             </span>
           </div>
-          <p className="text-xs text-[#64748B]">
-            Edit any PDF document, add text, whiteout/redact, draw signatures, insert stamps, and save drafts locally for later.
+          <p className="text-xs text-slate-500">
+            Click any original text on the PDF to edit in-place with matching font, whiteout/redact,
+            find & replace text, sign, and save drafts for later.
           </p>
         </div>
 
@@ -987,8 +1321,17 @@ export const PdfEditor: React.FC = () => {
             className="px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
             title="Upload any PDF file from your device"
           >
-            <Upload className="w-3.5 h-3.5 text-[#0984E3]" />
+            <Upload className="w-3.5 h-3.5 text-blue-600" />
             <span>Upload PDF</span>
+          </button>
+
+          <button
+            onClick={createBlankDocument}
+            className="px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Create clean blank page"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Blank PDF</span>
           </button>
 
           <button
@@ -1016,7 +1359,7 @@ export const PdfEditor: React.FC = () => {
             title="Download completed PDF"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>{isExporting ? "Exporting..." : "Download PDF"}</span>
+            <span>{isExporting ? "Compiling..." : "Download PDF"}</span>
           </button>
         </div>
       </div>
@@ -1024,24 +1367,37 @@ export const PdfEditor: React.FC = () => {
       {/* Status Toast */}
       {statusMsg && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs font-medium text-emerald-800 animate-fadeIn">
-          <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{statusMsg}</span>
         </div>
       )}
 
-      {/* Editing Toolbar */}
-      <div className="bg-white border border-[#E9ECEF] rounded-2xl p-3 shadow-xs space-y-2.5">
+      {/* Primary Editing Toolbar */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Main Tool Selector */}
           <div className="flex flex-wrap items-center gap-1.5">
             <button
+              onClick={() => setSelectedTool("edit-original")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                selectedTool === "edit-original"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+              }`}
+              title="Click any text directly on the PDF to edit it with matching font"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Edit Original Text</span>
+            </button>
+
+            <button
               onClick={() => setSelectedTool("select")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 selectedTool === "select"
-                  ? "bg-[#0984E3] text-white shadow-xs"
+                  ? "bg-slate-900 text-white shadow-xs"
                   : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
               }`}
-              title="Select, move, and edit elements"
+              title="Select and move overlays"
             >
               <Move className="w-3.5 h-3.5" />
               <span>Select / Move</span>
@@ -1051,307 +1407,385 @@ export const PdfEditor: React.FC = () => {
               onClick={() => setSelectedTool("text")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 selectedTool === "text"
-                  ? "bg-[#0984E3] text-white shadow-xs"
+                  ? "bg-blue-600 text-white shadow-xs"
                   : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
               }`}
-              title="Click on the page to insert custom text"
+              title="Click anywhere to insert a new text box"
             >
-              <Type className="w-3.5 h-3.5 text-blue-600" />
-              <span>Add Text</span>
+              <Type className="w-3.5 h-3.5" />
+              <span>Add New Text</span>
             </button>
 
             <button
               onClick={() => setSelectedTool("whiteout")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 selectedTool === "whiteout"
-                  ? "bg-[#0984E3] text-white shadow-xs"
+                  ? "bg-blue-600 text-white shadow-xs"
                   : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
               }`}
-              title="Place a whiteout box to hide or redact text"
+              title="Drag or click to whiteout/erase areas on page"
             >
-              <Eraser className="w-3.5 h-3.5 text-amber-600" />
-              <span>Whiteout / Redact</span>
+              <Eraser className="w-3.5 h-3.5" />
+              <span>Whiteout / Erase</span>
             </button>
 
             <button
               onClick={() => setSelectedTool("draw")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 selectedTool === "draw"
-                  ? "bg-[#0984E3] text-white shadow-xs"
+                  ? "bg-blue-600 text-white shadow-xs"
                   : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
               }`}
-              title="Freehand pen or highlight notes"
+              title="Draw freehand pen strokes"
             >
-              <PenTool className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Draw / Pen</span>
+              <PenTool className="w-3.5 h-3.5" />
+              <span>Draw</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedTool("highlighter")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                selectedTool === "highlighter"
+                  ? "bg-amber-500 text-white shadow-xs"
+                  : "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200"
+              }`}
+              title="Highlight text with translucent marker"
+            >
+              <Highlighter className="w-3.5 h-3.5" />
+              <span>Highlight</span>
             </button>
 
             <button
               onClick={() => setShowSignatureModal(true)}
-              className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Draw or stamp digital signature"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Insert digital drawn or typed signature"
             >
-              <Feather className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Add Signature</span>
+              <Feather className="w-3.5 h-3.5" />
+              <span>Signature</span>
             </button>
 
             <input
               ref={stampInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp"
+              accept="image/*"
               onChange={handleStampUpload}
               className="hidden"
             />
             <button
               onClick={() => stampInputRef.current?.click()}
-              className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Upload logo, company stamp, or badge image"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Insert logo, stamp, or image"
             >
-              <ImageIcon className="w-3.5 h-3.5 text-purple-600" />
-              <span>Insert Image</span>
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Image / Stamp</span>
             </button>
           </div>
 
-          {/* Page & Zoom Controls */}
+          {/* Find & Replace / Options Trigger */}
           <div className="flex items-center gap-2">
             <button
-              onClick={handleRotatePage}
-              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer"
-              title="Rotate Page 90°"
+              onClick={() => setShowFindReplace(!showFindReplace)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                showFindReplace
+                  ? "bg-purple-50 text-purple-700 border border-purple-200"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
+              }`}
+              title="Find and replace text across page"
             >
-              <RotateCw className="w-4 h-4" />
+              <Replace className="w-3.5 h-3.5 text-purple-600" />
+              <span>Find & Replace</span>
             </button>
 
-            <div className="w-[1px] h-4 bg-slate-200" />
-
             <button
-              onClick={() => setZoomLevel((prev) => Math.max(50, prev - 15))}
-              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer"
-              title="Zoom Out"
+              onClick={() => setShowTextLayer(!showTextLayer)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                showTextLayer
+                  ? "bg-slate-100 text-slate-800"
+                  : "bg-slate-50 text-slate-400"
+              }`}
+              title="Toggle interactive text layer hover indicators"
             >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-bold text-slate-600 w-10 text-center">
-              {zoomLevel}%
-            </span>
-            <button
-              onClick={() => setZoomLevel((prev) => Math.min(175, prev + 15))}
-              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-
-            <div className="w-[1px] h-4 bg-slate-200" />
-
-            <button
-              onClick={handlePrintPdf}
-              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer"
-              title="Print Document"
-            >
-              <Printer className="w-4 h-4" />
+              <Eye className="w-3.5 h-3.5" />
+              <span>Text Layer {showTextLayer ? "ON" : "OFF"}</span>
             </button>
           </div>
         </div>
 
-        {/* Dynamic Contextual Tool Settings */}
-        {selectedTool === "text" && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs text-slate-600 animate-fadeIn">
-            <span className="font-semibold text-slate-400">Text Settings:</span>
-            <select
-              value={textFontFamily}
-              onChange={(e) => setTextFontFamily(e.target.value as any)}
-              className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg font-medium"
-            >
-              <option value="Helvetica">Helvetica (Clean)</option>
-              <option value="Times">Times Roman (Formal)</option>
-              <option value="Courier">Courier (Typewriter)</option>
-            </select>
+        {/* Find & Replace Drawer */}
+        {showFindReplace && (
+          <div className="p-3.5 bg-purple-50/60 border border-purple-200 rounded-xl flex flex-wrap items-center gap-3 animate-fadeIn">
+            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+              <Search className="w-4 h-4 text-purple-600 shrink-0" />
+              <input
+                type="text"
+                placeholder="Find text (e.g. $1,450.00 or Apex Media)..."
+                value={findQuery}
+                onChange={(e) => setFindQuery(e.target.value)}
+                className="w-full text-xs p-2 bg-white border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
 
-            <select
-              value={textFontSize}
-              onChange={(e) => setTextFontSize(parseInt(e.target.value))}
-              className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg font-medium"
-            >
-              <option value={10}>10 pt (Small)</option>
-              <option value={12}>12 pt (Standard)</option>
-              <option value={14}>14 pt (Medium)</option>
-              <option value={18}>18 pt (Heading)</option>
-              <option value={24}>24 pt (Title)</option>
-              <option value={32}>32 pt (Banner)</option>
-            </select>
+            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+              <Replace className="w-4 h-4 text-purple-600 shrink-0" />
+              <input
+                type="text"
+                placeholder="Replace with (e.g. $2,200.00)..."
+                value={replaceValue}
+                onChange={(e) => setReplaceValue(e.target.value)}
+                className="w-full text-xs p-2 bg-white border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
 
+            <button
+              onClick={handleFindAndReplaceAll}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              Replace on Page
+            </button>
+          </div>
+        )}
+
+        {/* Secondary Tool Properties Strip (Font, Size, Color, Weight) */}
+        {(selectedTool === "text" || selectedTool === "edit-original" || selectedElementType === "text") && (
+          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-3 text-xs">
+            {/* Font Family */}
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-medium">Color:</span>
+              <span className="text-slate-500 font-semibold">Font:</span>
+              <select
+                value={textFontFamily}
+                onChange={(e) => setTextFontFamily(e.target.value as any)}
+                className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 font-medium text-slate-800"
+              >
+                <option value="Helvetica">Helvetica (Standard Sans)</option>
+                <option value="Times">Times Roman (Serif / Formal)</option>
+                <option value="Courier">Courier (Monospace / Code)</option>
+              </select>
+            </div>
+
+            {/* Font Size */}
+            <div className="flex items-center gap-1">
+              <span className="text-slate-500 font-semibold">Size:</span>
+              <button
+                onClick={() => setTextFontSize((s) => Math.max(8, s - 1))}
+                className="w-6 h-6 rounded bg-slate-100 text-slate-700 font-bold hover:bg-slate-200"
+              >
+                -
+              </button>
+              <input
+                type="number"
+                min="8"
+                max="64"
+                value={textFontSize}
+                onChange={(e) => setTextFontSize(Number(e.target.value))}
+                className="w-12 text-center bg-slate-50 border border-slate-300 rounded py-0.5"
+              />
+              <button
+                onClick={() => setTextFontSize((s) => Math.min(64, s + 1))}
+                className="w-6 h-6 rounded bg-slate-100 text-slate-700 font-bold hover:bg-slate-200"
+              >
+                +
+              </button>
+            </div>
+
+            {/* Bold & Italic */}
+            <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
+              <button
+                onClick={() => setTextIsBold(!textIsBold)}
+                className={`px-2.5 py-1 rounded font-bold transition-colors ${
+                  textIsBold ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                B
+              </button>
+              <button
+                onClick={() => setTextIsItalic(!textIsItalic)}
+                className={`px-2.5 py-1 rounded italic font-serif transition-colors ${
+                  textIsItalic ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                I
+              </button>
+            </div>
+
+            {/* Text Color */}
+            <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
+              <span className="text-slate-500 font-semibold">Color:</span>
               <input
                 type="color"
                 value={textColor}
                 onChange={(e) => setTextColor(e.target.value)}
                 className="w-6 h-6 rounded cursor-pointer border-0"
               />
+              <div className="flex items-center gap-1">
+                {["#0f172a", "#1e3a8a", "#dc2626", "#16a34a"].map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setTextColor(c)}
+                    style={{ backgroundColor: c }}
+                    className="w-4 h-4 rounded-full border border-slate-300 cursor-pointer"
+                  />
+                ))}
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-medium">Bg Fill:</span>
-              <select
-                value={textBgColor}
-                onChange={(e) => setTextBgColor(e.target.value)}
-                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg font-medium"
-              >
-                <option value="transparent">Transparent</option>
-                <option value="#ffffff">White Box</option>
-                <option value="#fef08a">Yellow Highlight</option>
-                <option value="#bfdbfe">Blue Tint</option>
-              </select>
-            </div>
-
-            <span className="text-[11px] text-blue-600 italic">
-              👉 Click anywhere on the PDF page below to place text.
-            </span>
-          </div>
-        )}
-
-        {selectedTool === "whiteout" && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs text-slate-600 animate-fadeIn">
-            <span className="font-semibold text-slate-400">Whiteout Settings:</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-medium">Block Color:</span>
-              <select
-                value={whiteoutColor}
-                onChange={(e) => setWhiteoutColor(e.target.value)}
-                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg font-medium"
-              >
-                <option value="#ffffff">White (Erase/Cover)</option>
-                <option value="#000000">Black (Redaction)</option>
-                <option value="#f8fafc">Off-White</option>
-              </select>
-            </div>
-            <span className="text-[11px] text-amber-600 italic">
-              👉 Click anywhere on the document to place a redaction box.
-            </span>
-          </div>
-        )}
-
-        {selectedTool === "draw" && (
-          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs text-slate-600 animate-fadeIn">
-            <span className="font-semibold text-slate-400">Brush Settings:</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-medium">Color:</span>
+            {/* Background Mask Color */}
+            <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
+              <span className="text-slate-500 font-semibold">Mask / Whiteout:</span>
               <input
                 type="color"
-                value={drawColor}
-                onChange={(e) => setDrawColor(e.target.value)}
+                value={whiteoutColor}
+                onChange={(e) => setWhiteoutColor(e.target.value)}
                 className="w-6 h-6 rounded cursor-pointer border-0"
               />
+              <span className="text-[10px] text-slate-400">(Default: #FFFFFF)</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-medium">Width:</span>
-              <select
-                value={drawWidth}
-                onChange={(e) => setDrawWidth(parseInt(e.target.value))}
-                className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg font-medium"
-              >
-                <option value={2}>Fine (2px)</option>
-                <option value={4}>Medium (4px)</option>
-                <option value={8}>Marker / Highlight (8px)</option>
-              </select>
-            </div>
-            <button
-              onClick={() => {
-                updateCurrentPage((prev) => ({ ...prev, drawings: [] }));
-                redrawCurrentDrawings();
-              }}
-              className="text-xs text-red-600 hover:underline cursor-pointer"
-            >
-              Clear drawings on this page
-            </button>
           </div>
         )}
       </div>
 
-      {/* Main Canvas Frame & Page Navigation */}
-      <div className="bg-slate-100 border border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center overflow-x-auto min-h-[700px]">
-        {/* Page Pagination Bar */}
-        <div className="bg-white px-4 py-2 rounded-xl shadow-xs border border-slate-200 flex items-center gap-4 mb-4 text-xs font-semibold text-slate-700">
-          <button
-            onClick={() => setCurrentPageIndex((prev) => Math.max(0, prev - 1))}
-            disabled={currentPageIndex === 0}
-            className="p-1 hover:bg-slate-100 rounded disabled:opacity-40 cursor-pointer"
-            title="Previous Page"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span>
-            Page <span className="font-bold text-[#0984E3]">{currentPageIndex + 1}</span> of{" "}
-            <span className="font-bold">{pageCount}</span>
-          </span>
-          <button
-            onClick={() => setCurrentPageIndex((prev) => Math.min(pageCount - 1, prev + 1))}
-            disabled={currentPageIndex >= pageCount - 1}
-            className="p-1 hover:bg-slate-100 rounded disabled:opacity-40 cursor-pointer"
-            title="Next Page"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+      {/* Main Workspace Frame */}
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        {/* Left Side: Page Navigator & Document Controls */}
+        <div className="w-full lg:w-48 bg-white border border-slate-200 rounded-2xl p-3 shadow-xs space-y-3 shrink-0">
+          <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Page {currentPageIndex + 1} of {pageCount}
+          </div>
 
-          <div className="w-[1px] h-4 bg-slate-200" />
+          <div className="flex items-center justify-between gap-1">
+            <button
+              onClick={() => setCurrentPageIndex((p) => Math.max(0, p - 1))}
+              disabled={currentPageIndex === 0}
+              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-bold font-mono">
+              {currentPageIndex + 1} / {pageCount}
+            </span>
+            <button
+              onClick={() => setCurrentPageIndex((p) => Math.min(pageCount - 1, p + 1))}
+              disabled={currentPageIndex >= pageCount - 1}
+              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
 
-          <button
-            onClick={handleAddNewBlankPage}
-            className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer"
-            title="Insert new blank page"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Page</span>
-          </button>
+          {/* Zoom controls */}
+          <div className="pt-2 border-t border-slate-100 space-y-1.5">
+            <span className="text-[11px] font-semibold text-slate-500 block">Zoom: {zoomLevel}%</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setZoomLevel((z) => Math.max(50, z - 15))}
+                className="flex-1 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded text-xs font-bold"
+              >
+                -
+              </button>
+              <button
+                onClick={() => setZoomLevel(100)}
+                className="px-2 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded text-[10px]"
+              >
+                100%
+              </button>
+              <button
+                onClick={() => setZoomLevel((z) => Math.min(200, z + 15))}
+                className="flex-1 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded text-xs font-bold"
+              >
+                +
+              </button>
+            </div>
+          </div>
 
-          {pageCount > 1 && (
+          {/* Page Actions */}
+          <div className="pt-2 border-t border-slate-100 space-y-1.5">
+            <button
+              onClick={handleRotatePage}
+              className="w-full py-1.5 px-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              <span>Rotate 90°</span>
+            </button>
+
+            <button
+              onClick={handleAddNewBlankPage}
+              className="w-full py-1.5 px-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Page</span>
+            </button>
+
             <button
               onClick={handleDeleteCurrentPage}
-              className="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer ml-1"
-              title="Delete current page"
+              disabled={pageCount <= 1}
+              className="w-full py-1.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
+              <span>Delete Page</span>
             </button>
-          )}
+          </div>
+
+          <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] text-blue-800 leading-tight">
+            <p className="font-bold flex items-center gap-1 mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+              <span>Original Text Match</span>
+            </p>
+            Hover and click any detected word to replace it seamlessly with the exact matching font.
+          </div>
         </div>
 
-        {/* Scaled PDF Document Page Container */}
-        <div
-          style={{
-            transform: `scale(${zoomLevel / 100})`,
-            transformOrigin: "top center",
-            transition: "transform 0.15s ease-out",
-          }}
-          className="relative"
-        >
+        {/* Center: PDF Canvas & Interactive Overlay Layer */}
+        <div className="flex-1 overflow-auto bg-slate-200/70 p-4 sm:p-6 rounded-2xl flex justify-center min-h-[700px] border border-slate-300">
           <div
             ref={pageContainerRef}
-            onClick={handleContainerClick}
-            className={`relative bg-white shadow-lg border border-slate-300 rounded-sm overflow-hidden select-none ${
-              selectedTool === "text"
-                ? "cursor-text"
-                : selectedTool === "whiteout"
-                ? "cursor-crosshair"
-                : selectedTool === "draw"
-                ? "cursor-crosshair"
-                : "cursor-default"
-            }`}
+            onClick={handleCanvasContainerClick}
+            className="relative bg-white shadow-xl rounded-sm transition-transform select-none"
             style={{
-              width: "794px", // Standard A4 display pixel width at 96 DPI
-              minHeight: "1123px", // Standard A4 display pixel height
               transform: `rotate(${currentPage.rotation}deg)`,
-              transition: "transform 0.2s ease-in-out",
+              transformOrigin: "center center",
             }}
           >
-            {/* 1. Underlying PDF Render Canvas */}
-            <canvas
-              ref={pdfRenderCanvasRef}
-              className="absolute inset-0 w-full h-full pointer-events-none"
-            />
+            {/* 1. Underlying Rendered PDF Canvas */}
+            <canvas ref={pdfRenderCanvasRef} className="block w-full h-auto" />
 
-            {/* 2. Whiteouts / Redaction Boxes */}
+            {/* Loading Spinner */}
+            {isRenderingPage && (
+              <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center z-40">
+                <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 bg-white px-4 py-2 rounded-xl shadow-md border border-slate-200">
+                  <Sparkles className="w-4 h-4 animate-spin" />
+                  <span>Rendering vector page & fonts...</span>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Detected Original Text Interactive Layer ("Edit Original Text Mode") */}
+            {showTextLayer && selectedTool === "edit-original" && (
+              <div className="absolute inset-0 z-20 pointer-events-none">
+                {detectedTexts.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartEditOriginalText(item);
+                    }}
+                    title={`Click to edit "${item.str}" (Font: ${item.fontFamily}, ${item.fontSize}pt)`}
+                    className="absolute pointer-events-auto cursor-pointer rounded-xs border border-transparent hover:border-blue-500 hover:bg-blue-500/15 transition-all group"
+                    style={{
+                      left: `${item.x}%`,
+                      top: `${item.y}%`,
+                      width: `${item.width}%`,
+                      height: `${item.height}%`,
+                    }}
+                  >
+                    <div className="hidden group-hover:flex absolute -top-5 left-0 items-center gap-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs whitespace-nowrap z-30">
+                      <span>{item.fontFamily} {item.fontSize}pt</span>
+                      <Edit3 className="w-2.5 h-2.5" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 3. Whiteout / Redaction Layer */}
             {currentPage.whiteouts.map((w) => (
               <div
                 key={w.id}
@@ -1360,8 +1794,10 @@ export const PdfEditor: React.FC = () => {
                   setSelectedElementId(w.id);
                   setSelectedElementType("whiteout");
                 }}
-                className={`absolute group cursor-move ${
-                  selectedElementId === w.id ? "ring-2 ring-blue-500 shadow-md" : ""
+                className={`absolute transition-all cursor-move z-10 ${
+                  selectedElementId === w.id
+                    ? "ring-2 ring-blue-500 shadow-md"
+                    : "border border-transparent"
                 }`}
                 style={{
                   left: `${w.x}%`,
@@ -1372,26 +1808,99 @@ export const PdfEditor: React.FC = () => {
                 }}
               >
                 {selectedElementId === w.id && (
-                  <div className="absolute -top-7 right-0 bg-slate-900 text-white rounded px-1.5 py-0.5 text-[10px] flex items-center gap-1 shadow">
-                    <span>Redaction Box</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateCurrentPage((prev) => ({
+                        ...prev,
+                        whiteouts: prev.whiteouts.filter((item) => item.id !== w.id),
+                      }));
+                    }}
+                    className="absolute -top-3 -right-3 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center shadow-xs hover:bg-rose-700 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {/* 4. Text Overlays Layer */}
+            {currentPage.textOverlays.map((t) => (
+              <div
+                key={t.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedElementId(t.id);
+                  setSelectedElementType("text");
+                  setTextFontFamily(t.fontFamily);
+                  setTextFontSize(t.fontSize);
+                  setTextColor(t.color);
+                  setTextIsBold(!!t.bold);
+                  setTextIsItalic(!!t.italic);
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setEditingTarget({
+                    existingOverlay: t,
+                    currentValue: t.text,
+                  });
+                }}
+                className={`absolute cursor-move z-20 px-1 py-0.5 rounded-xs transition-all ${
+                  selectedElementId === t.id
+                    ? "ring-2 ring-blue-600 bg-blue-50/50 shadow-md"
+                    : "hover:ring-1 hover:ring-blue-400"
+                }`}
+                style={{
+                  left: `${t.x}%`,
+                  top: `${t.y}%`,
+                  fontSize: `${t.fontSize * (zoomLevel / 100)}px`,
+                  fontFamily:
+                    t.fontFamily === "Times"
+                      ? "'Times New Roman', Times, serif"
+                      : t.fontFamily === "Courier"
+                      ? "'Courier New', Courier, monospace"
+                      : "Helvetica, Arial, sans-serif",
+                  color: t.color,
+                  fontWeight: t.bold ? "bold" : "normal",
+                  fontStyle: t.italic ? "italic" : "normal",
+                  backgroundColor: t.bgColor || "transparent",
+                }}
+              >
+                {t.text}
+
+                {selectedElementId === t.id && (
+                  <div className="absolute -top-5 right-0 flex items-center gap-1 bg-slate-900 text-white rounded-md px-1.5 py-0.5 text-[9px] shadow-md z-30">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingTarget({
+                          existingOverlay: t,
+                          currentValue: t.text,
+                        });
+                      }}
+                      className="hover:text-blue-300"
+                    >
+                      Edit
+                    </button>
+                    <span>•</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         updateCurrentPage((prev) => ({
                           ...prev,
-                          whiteouts: prev.whiteouts.filter((item) => item.id !== w.id),
+                          textOverlays: prev.textOverlays.filter((item) => item.id !== t.id),
                         }));
                       }}
-                      className="text-red-400 hover:text-red-300 cursor-pointer"
+                      className="hover:text-rose-300"
                     >
-                      <X className="w-3 h-3" />
+                      Delete
                     </button>
                   </div>
                 )}
               </div>
             ))}
 
-            {/* 3. Stamp Images / Digital Signatures */}
+            {/* 5. Stamps and Signatures Layer */}
             {currentPage.stamps.map((s) => (
               <div
                 key={s.id}
@@ -1400,8 +1909,10 @@ export const PdfEditor: React.FC = () => {
                   setSelectedElementId(s.id);
                   setSelectedElementType("stamp");
                 }}
-                className={`absolute group cursor-move ${
-                  selectedElementId === s.id ? "ring-2 ring-emerald-500 shadow-md" : ""
+                className={`absolute cursor-move z-20 ${
+                  selectedElementId === s.id
+                    ? "ring-2 ring-indigo-500 shadow-lg"
+                    : "hover:ring-1 hover:ring-indigo-300"
                 }`}
                 style={{
                   left: `${s.x}%`,
@@ -1412,307 +1923,380 @@ export const PdfEditor: React.FC = () => {
               >
                 <img
                   src={s.imageUrl}
-                  alt="Stamp"
+                  alt="stamp"
                   className="w-full h-full object-contain pointer-events-none"
                 />
+
                 {selectedElementId === s.id && (
-                  <div className="absolute -top-7 right-0 bg-slate-900 text-white rounded px-1.5 py-0.5 text-[10px] flex items-center gap-1 shadow">
-                    <span>Stamp/Signature</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateCurrentPage((prev) => ({
-                          ...prev,
-                          stamps: prev.stamps.filter((item) => item.id !== s.id),
-                        }));
-                      }}
-                      className="text-red-400 hover:text-red-300 cursor-pointer"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateCurrentPage((prev) => ({
+                        ...prev,
+                        stamps: prev.stamps.filter((item) => item.id !== s.id),
+                      }));
+                    }}
+                    className="absolute -top-3 -right-3 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center shadow-xs hover:bg-rose-700 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 )}
               </div>
             ))}
 
-            {/* 4. Freehand Ink Overlay Canvas */}
+            {/* 6. Drawing Canvas Layer */}
             <canvas
               ref={drawingCanvasRef}
               onMouseDown={handleDrawingMouseDown}
               onMouseMove={handleDrawingMouseMove}
               onMouseUp={handleDrawingMouseUp}
-              className={`absolute inset-0 w-full h-full z-10 ${
-                selectedTool === "draw" ? "pointer-events-auto cursor-crosshair" : "pointer-events-none"
+              onMouseLeave={handleDrawingMouseUp}
+              className={`absolute inset-0 z-30 ${
+                selectedTool === "draw" || selectedTool === "highlighter"
+                  ? "pointer-events-auto cursor-crosshair"
+                  : "pointer-events-none"
               }`}
             />
-
-            {/* 5. Interactive Text Overlays */}
-            {currentPage.textOverlays.map((t) => (
-              <div
-                key={t.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedElementId(t.id);
-                  setSelectedElementType("text");
-                }}
-                className={`absolute z-20 group transition-shadow ${
-                  selectedElementId === t.id
-                    ? "ring-2 ring-[#0984E3] bg-blue-50/20 shadow-md rounded"
-                    : "hover:ring-1 hover:ring-slate-400/50"
-                }`}
-                style={{
-                  left: `${t.x}%`,
-                  top: `${t.y}%`,
-                  fontSize: `${t.fontSize}px`,
-                  fontFamily: t.fontFamily,
-                  color: t.color,
-                  backgroundColor: t.bgColor || "transparent",
-                  fontWeight: t.bold ? "bold" : "normal",
-                  fontStyle: t.italic ? "italic" : "normal",
-                  padding: "2px 4px",
-                }}
-              >
-                <input
-                  type="text"
-                  value={t.text}
-                  onChange={(e) => {
-                    const newText = e.target.value;
-                    updateCurrentPage((prev) => ({
-                      ...prev,
-                      textOverlays: prev.textOverlays.map((item) =>
-                        item.id === t.id ? { ...item, text: newText } : item
-                      ),
-                    }));
-                  }}
-                  className="bg-transparent border-0 focus:outline-none min-w-[60px]"
-                />
-
-                {selectedElementId === t.id && (
-                  <div className="absolute -top-7 left-0 bg-slate-900 text-white rounded px-1.5 py-0.5 text-[10px] flex items-center gap-1.5 shadow whitespace-nowrap">
-                    <span>X: {t.x}% Y: {t.y}%</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateCurrentPage((prev) => ({
-                          ...prev,
-                          textOverlays: prev.textOverlays.filter((item) => item.id !== t.id),
-                        }));
-                      }}
-                      className="text-red-400 hover:text-red-300 ml-1 cursor-pointer"
-                      title="Delete text"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
           </div>
         </div>
       </div>
 
-      {/* Bottom Information & Sample Templates */}
-      <div className="bg-white border border-[#E9ECEF] rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-4 text-xs">
-        <div className="flex flex-wrap items-center gap-4 text-slate-600">
-          <div>
-            <span className="font-semibold text-slate-400 mr-1">Document:</span>
-            <span className="font-bold text-[#0F172A]">{docName}</span>
-          </div>
-          <div className="w-[1px] h-4 bg-slate-200" />
-          <div>
-            <span className="font-semibold text-slate-400 mr-1">Pages:</span>
-            <span className="font-bold text-[#0F172A]">{pageCount}</span>
-          </div>
-          <div className="w-[1px] h-4 bg-slate-200" />
-          <div>
-            <span className="font-semibold text-slate-400 mr-1">Overlays on this page:</span>
-            <span className="font-bold text-[#0984E3]">
-              {currentPage.textOverlays.length} texts, {currentPage.whiteouts.length} whiteouts,{" "}
-              {currentPage.stamps.length} stamps
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={createBlankDocument}
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-          >
-            New Blank PDF
-          </button>
-          <div className="w-[1px] h-4 bg-slate-200" />
-          <button
-            onClick={loadSampleDocument}
-            className="text-xs font-semibold text-[#0984E3] hover:underline cursor-pointer"
-          >
-            Load Sample Agreement
-          </button>
-        </div>
-      </div>
-
-      {/* Modal: Saved Drafts ("save kr skhu bad ke liye") */}
-      {showSavedDraftsModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+      {/* In-Place Text Editing Modal Popover */}
+      {editingTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <FolderOpen className="w-5 h-5 text-amber-600" />
-                <h3 className="text-base font-bold text-[#0F172A]">
-                  Saved PDF Projects & Drafts
-                </h3>
+                <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {editingTarget.detectedText ? "Edit Original Text" : "Edit Text Overlay"}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Matches the original font ({textFontFamily}, {textFontSize}pt,{" "}
+                    {textIsBold ? "Bold" : "Regular"})
+                  </p>
+                </div>
               </div>
               <button
-                onClick={() => setShowSavedDraftsModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                onClick={() => setEditingTarget(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-600">
-              Your drafts are securely preserved in your browser’s local storage. You can reopen any project and continue editing without losing text, stamps, or redactions.
-            </p>
-
-            <div className="flex-1 overflow-y-auto space-y-2 py-2">
-              {savedDrafts.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-xs">
-                  No saved drafts yet. Click "Save Draft" in the editor to save your current work!
-                </div>
-              ) : (
-                savedDrafts.map((draft) => (
-                  <div
-                    key={draft.id}
-                    onClick={() => handleOpenDraft(draft)}
-                    className="p-3 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl flex items-center justify-between transition-colors cursor-pointer group"
-                  >
-                    <div>
-                      <h4 className="text-xs font-bold text-[#0F172A] group-hover:text-[#0984E3]">
-                        {draft.name}
-                      </h4>
-                      <p className="text-[11px] text-slate-500">
-                        Saved: {new Date(draft.savedAt).toLocaleString()} • {draft.pageCount} page(s)
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[#0984E3]">Resume</span>
-                      <button
-                        onClick={(e) => handleDeleteDraft(draft.id, e)}
-                        className="p-1 text-slate-400 hover:text-red-600 rounded-lg cursor-pointer"
-                        title="Delete draft"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+            {/* Text Input Area */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Replacement Text:
+              </label>
+              <textarea
+                rows={3}
+                value={editingTarget.currentValue}
+                onChange={(e) =>
+                  setEditingTarget({ ...editingTarget, currentValue: e.target.value })
+                }
+                className="w-full p-3 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
+              />
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex justify-end">
+            {/* Matching Font Controls */}
+            <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div>
+                <label className="block text-slate-500 font-semibold mb-1">Font Family</label>
+                <select
+                  value={textFontFamily}
+                  onChange={(e) => setTextFontFamily(e.target.value as any)}
+                  className="w-full p-1.5 bg-white border border-slate-300 rounded-lg text-slate-800"
+                >
+                  <option value="Helvetica">Helvetica (Sans-Serif)</option>
+                  <option value="Times">Times Roman (Serif)</option>
+                  <option value="Courier">Courier (Monospace)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-500 font-semibold mb-1">Font Size: {textFontSize}pt</label>
+                <input
+                  type="number"
+                  min="8"
+                  max="64"
+                  value={textFontSize}
+                  onChange={(e) => setTextFontSize(Number(e.target.value))}
+                  className="w-full p-1.5 bg-white border border-slate-300 rounded-lg text-slate-800"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={textIsBold}
+                    onChange={(e) => setTextIsBold(e.target.checked)}
+                    className="rounded text-blue-600"
+                  />
+                  <span className="font-semibold text-slate-700">Bold</span>
+                </label>
+                <label className="inline-flex items-center gap-1.5 cursor-pointer ml-3">
+                  <input
+                    type="checkbox"
+                    checked={textIsItalic}
+                    onChange={(e) => setTextIsItalic(e.target.checked)}
+                    className="rounded text-blue-600"
+                  />
+                  <span className="font-semibold text-slate-700">Italic</span>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 font-semibold">Color:</span>
+                <input
+                  type="color"
+                  value={textColor}
+                  onChange={(e) => setTextColor(e.target.value)}
+                  className="w-6 h-6 rounded cursor-pointer border-0"
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between pt-2">
+              {editingTarget.detectedText && (
+                <button
+                  onClick={() => {
+                    handleQuickEraseText(editingTarget.detectedText!);
+                    setEditingTarget(null);
+                  }}
+                  className="text-xs font-semibold text-rose-600 hover:text-rose-800 flex items-center gap-1"
+                >
+                  <Eraser className="w-3.5 h-3.5" />
+                  <span>Erase Completely</span>
+                </button>
+              )}
+
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={() => setEditingTarget(null)}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApplyTextReplacement}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm"
+                >
+                  Apply & Match Font
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Signature Studio Modal */}
+      {showSignatureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Feather className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">Add Digital Signature</h3>
+              </div>
               <button
-                onClick={() => setShowSavedDraftsModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+                onClick={() => setShowSignatureModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
               >
-                Close
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Mode Selector */}
+            <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold">
+              <button
+                onClick={() => setSigMode("draw")}
+                className={`flex-1 py-1.5 rounded-lg transition-all ${
+                  sigMode === "draw" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
+                }`}
+              >
+                Draw Signature
+              </button>
+              <button
+                onClick={() => setSigMode("type")}
+                className={`flex-1 py-1.5 rounded-lg transition-all ${
+                  sigMode === "type" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
+                }`}
+              >
+                Type Cursive Name
+              </button>
+            </div>
+
+            {/* Draw Pad */}
+            {sigMode === "draw" ? (
+              <div className="space-y-2">
+                <div className="border border-slate-300 rounded-xl bg-slate-50 relative overflow-hidden">
+                  <canvas
+                    ref={sigPadCanvasRef}
+                    width={400}
+                    height={160}
+                    onMouseDown={(e) => {
+                      isSigDrawingRef.current = true;
+                      const ctx = sigPadCanvasRef.current?.getContext("2d");
+                      if (ctx) {
+                        const rect = sigPadCanvasRef.current!.getBoundingClientRect();
+                        ctx.beginPath();
+                        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+                        ctx.strokeStyle = "#0F172A";
+                        ctx.lineWidth = 2.5;
+                        ctx.lineCap = "round";
+                      }
+                    }}
+                    onMouseMove={(e) => {
+                      if (!isSigDrawingRef.current) return;
+                      const ctx = sigPadCanvasRef.current?.getContext("2d");
+                      if (ctx) {
+                        const rect = sigPadCanvasRef.current!.getBoundingClientRect();
+                        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+                        ctx.stroke();
+                      }
+                    }}
+                    onMouseUp={() => {
+                      isSigDrawingRef.current = false;
+                    }}
+                    onMouseLeave={() => {
+                      isSigDrawingRef.current = false;
+                    }}
+                    className="w-full h-40 cursor-crosshair block"
+                  />
+                  <span className="absolute bottom-2 left-3 text-[10px] text-slate-400 select-none">
+                    Sign above using mouse or touch
+                  </span>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      const ctx = sigPadCanvasRef.current?.getContext("2d");
+                      if (ctx && sigPadCanvasRef.current) {
+                        ctx.clearRect(
+                          0,
+                          0,
+                          sigPadCanvasRef.current.width,
+                          sigPadCanvasRef.current.height
+                        );
+                      }
+                    }}
+                    className="text-xs text-rose-600 hover:text-rose-800 font-medium"
+                  >
+                    Clear Signature
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Your Full Name:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Johnathan Doe"
+                    value={typedSigName}
+                    onChange={(e) => setTypedSigName(e.target.value)}
+                    className="w-full p-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="p-4 border border-slate-200 rounded-xl bg-slate-50 flex items-center justify-center min-h-[90px]">
+                  <span
+                    className="text-3xl text-slate-900"
+                    style={{ fontFamily: "'Brush Script MT', 'Dancing Script', cursive" }}
+                  >
+                    {typedSigName || "Preview Signature"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => setShowSignatureModal(false)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplySignature}
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm"
+              >
+                Insert Signature
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Draw Digital Signature */}
-      {showSignatureModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
-                <Feather className="w-4 h-4 text-emerald-600" />
-                <span>Draw Your Digital Signature</span>
-              </h3>
+      {/* Saved Drafts Modal ("save kr skhu bad ke liye bhi") */}
+      {showSavedDraftsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <FolderOpen className="w-5 h-5 text-amber-600" />
+                <h3 className="text-sm font-bold text-slate-900">Saved PDF Project Drafts</h3>
+              </div>
               <button
-                onClick={() => setShowSignatureModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                onClick={() => setShowSavedDraftsModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-600">
-              Draw your handwritten signature below using your mouse, trackpad, or touch screen.
-            </p>
-
-            <div className="border border-slate-300 rounded-xl bg-slate-50/50 p-1 flex justify-center">
-              <canvas
-                ref={sigPadCanvasRef}
-                width={380}
-                height={160}
-                onMouseDown={(e) => {
-                  isSigDrawingRef.current = true;
-                  const canvas = sigPadCanvasRef.current;
-                  if (!canvas) return;
-                  const ctx = canvas.getContext("2d");
-                  if (!ctx) return;
-                  const rect = canvas.getBoundingClientRect();
-                  ctx.beginPath();
-                  ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-                  ctx.strokeStyle = "#0F172A";
-                  ctx.lineWidth = 2.5;
-                  ctx.lineCap = "round";
-                  ctx.lineJoin = "round";
-                }}
-                onMouseMove={(e) => {
-                  if (!isSigDrawingRef.current) return;
-                  const canvas = sigPadCanvasRef.current;
-                  if (!canvas) return;
-                  const ctx = canvas.getContext("2d");
-                  if (!ctx) return;
-                  const rect = canvas.getBoundingClientRect();
-                  ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-                  ctx.stroke();
-                }}
-                onMouseUp={() => {
-                  isSigDrawingRef.current = false;
-                }}
-                className="cursor-crosshair bg-white rounded-lg shadow-inner"
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <button
-                onClick={() => {
-                  const canvas = sigPadCanvasRef.current;
-                  if (canvas) {
-                    const ctx = canvas.getContext("2d");
-                    ctx?.clearRect(0, 0, canvas.width, canvas.height);
-                  }
-                }}
-                className="text-xs text-slate-500 hover:text-slate-800 cursor-pointer"
-              >
-                Clear Signature
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowSignatureModal(false)}
-                  className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    const canvas = sigPadCanvasRef.current;
-                    if (canvas) {
-                      const dataUrl = canvas.toDataURL("image/png");
-                      handleSaveSignature(dataUrl);
-                    }
-                  }}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer"
-                >
-                  Place Signature
-                </button>
+            {savedDrafts.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                No saved drafts yet. Click "Save Draft" on any document to resume it anytime!
               </div>
-            </div>
+            ) : (
+              <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                {savedDrafts.map((draft) => (
+                  <div
+                    key={draft.id}
+                    className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50 px-2 rounded-lg"
+                  >
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">{draft.name}</h4>
+                      <p className="text-[11px] text-slate-500">
+                        Saved: {new Date(draft.savedAt).toLocaleDateString()} • {draft.pageCount} pages
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleOpenDraft(draft)}
+                        className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold"
+                      >
+                        Resume Draft
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (window.confirm("Delete this draft?")) {
+                            await deleteSavedPdfProject(draft.id);
+                            await loadSavedDraftsList();
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
