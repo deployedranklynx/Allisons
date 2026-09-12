@@ -1,6 +1,6 @@
 {
   "name": "All-in-One SEO Tool",
-  "description": "Comprehensive SEO & webmaster toolkit featuring bulk URL opener, 3-in-1 hyperlink generator, duplicate & protocol cleaners, Moz/Ahrefs metric analyzers, rank tracker, Word-to-HTML/HTML-to-Word converter, RichText-to-Markdown suite, and PDF Editor.",
+  "description": "Comprehensive SEO & webmaster toolkit featuring bulk URL checker (bulkurlchecker.com style HTTP status & redirect chain auditor), bulk URL opener, 3-in-1 hyperlink generator, duplicate & protocol cleaners, Moz/Ahrefs metric analyzers, rank tracker, Word-to-HTML/HTML-to-Word converter, RichText-to-Markdown suite, and PDF Editor.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

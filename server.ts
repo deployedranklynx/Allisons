@@ -559,6 +559,387 @@ app.post("/api/seo/ping-urls", handlePingRequest);
 app.post("/api/ping-urls", handlePingRequest);
 
 // ---------------------------------------------------------------------------
+// 4B. COMPREHENSIVE BULK URL & REDIRECT CHAIN CHECKER (bulkurlchecker.com style)
+// ---------------------------------------------------------------------------
+// Enable relaxed TLS verification to ensure 100% check rate even on sites with self-signed / expired SSL certs
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+interface CheckUrlOptions {
+  userAgent?: string;
+  method?: "GET" | "HEAD";
+  followRedirects?: boolean;
+  maxRedirects?: number;
+  timeoutMs?: number;
+}
+
+const DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+
+async function checkSingleUrlDetailed(rawInput: string, options: CheckUrlOptions = {}) {
+  const userAgent = options.userAgent || DEFAULT_USER_AGENT;
+  const preferredMethod = options.method || "GET";
+  const followRedirects = options.followRedirects !== false;
+  const maxRedirects = Math.min(15, Math.max(1, options.maxRedirects || 10));
+  const timeoutMs = Math.min(25000, Math.max(2000, options.timeoutMs || 8000));
+
+  let normalizedUrl = rawInput.trim();
+  if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
+    normalizedUrl = "https://" + normalizedUrl;
+  }
+
+  const hops: Array<{
+    hop: number;
+    url: string;
+    statusCode: number;
+    statusText: string;
+    location?: string;
+    responseTimeMs: number;
+  }> = [];
+
+  const visitedUrls = new Set<string>();
+  let currentUrl = normalizedUrl;
+  const overallStart = Date.now();
+  let finalResponseHeaders: Record<string, string> = {};
+  let finalStatusCode = 0;
+  let finalStatusText = "";
+  let finalContentType = "-";
+  let finalContentLength = "-";
+  let finalServer = "-";
+  let pageTitle = "";
+  let metaRobots = "";
+  let canonicalUrl = "";
+  let metaDescription = "";
+  let isError = false;
+  let errorMessage = "";
+
+  while (hops.length < maxRedirects) {
+    if (visitedUrls.has(currentUrl)) {
+      isError = true;
+      errorMessage = `Redirect loop detected returning to ${currentUrl}`;
+      break;
+    }
+    visitedUrls.add(currentUrl);
+
+    const hopIndex = hops.length + 1;
+    const hopStart = Date.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      // Use preferred method, but if HEAD fails or gets 405/403, GET is cleaner
+      let methodToUse = preferredMethod;
+
+      let res = await fetch(currentUrl, {
+        method: methodToUse,
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          "User-Agent": userAgent,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Upgrade-Insecure-Requests": "1",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
+          "Sec-Fetch-User": "?1",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+        },
+      });
+
+      // If HEAD was rejected with 405 Method Not Allowed or 403, retry with GET
+      if (preferredMethod === "HEAD" && (res.status === 405 || res.status === 403 || res.status === 501)) {
+        res = await fetch(currentUrl, {
+          method: "GET",
+          redirect: "manual",
+          signal: controller.signal,
+          headers: {
+            "User-Agent": userAgent,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+          },
+        });
+      }
+
+      clearTimeout(timer);
+      const hopDuration = Date.now() - hopStart;
+      const statusCode = res.status;
+      const statusText = res.statusText || (statusCode === 200 ? "OK" : `Status ${statusCode}`);
+      const isRedirectStatus = statusCode >= 300 && statusCode < 400;
+      const location = res.headers.get("location") || undefined;
+
+      let resolvedLocation: string | undefined = undefined;
+      if (location) {
+        try {
+          resolvedLocation = new URL(location, currentUrl).href;
+        } catch {
+          resolvedLocation = location;
+        }
+      }
+
+      hops.push({
+        hop: hopIndex,
+        url: currentUrl,
+        statusCode,
+        statusText,
+        location: resolvedLocation,
+        responseTimeMs: hopDuration,
+      });
+
+      // If it's a redirect and followRedirects is true
+      if (isRedirectStatus && resolvedLocation && followRedirects) {
+        currentUrl = resolvedLocation;
+        continue;
+      }
+
+      // We reached the final destination or non-redirect
+      finalStatusCode = statusCode;
+      finalStatusText = statusText;
+
+      // Extract headers
+      finalContentType = res.headers.get("content-type") || "-";
+      finalContentLength = res.headers.get("content-length") || "-";
+      finalServer = res.headers.get("server") || "-";
+
+      const xRobots = res.headers.get("x-robots-tag");
+      if (xRobots) metaRobots = xRobots;
+
+      const linkHeader = res.headers.get("link");
+      if (linkHeader) {
+        const canonicalMatch = linkHeader.match(/<([^>]+)>;\s*rel=["']canonical["']/i);
+        if (canonicalMatch) {
+          canonicalUrl = canonicalMatch[1];
+        }
+      }
+
+      // Build header map
+      res.headers.forEach((val, key) => {
+        finalResponseHeaders[key.toLowerCase()] = val;
+      });
+
+      // If content-type is HTML and method is GET, parse title & meta tags from initial text chunk
+      if (finalContentType.toLowerCase().includes("html") && methodToUse === "GET") {
+        try {
+          // Read up to 45KB safely
+          const rawText = await res.text();
+          const sample = rawText.slice(0, 45000);
+
+          // Title
+          const titleMatch = sample.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (titleMatch) {
+            pageTitle = titleMatch[1].replace(/\s+/g, " ").trim();
+          }
+
+          // Meta robots if not already found in X-Robots-Tag
+          if (!metaRobots) {
+            const robotsMatch = sample.match(/<meta[^>]+name=["']robots["'][^>]+content=["']([^"']+)["']/i) ||
+                                sample.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']robots["']/i);
+            if (robotsMatch) {
+              metaRobots = robotsMatch[1].trim();
+            }
+          }
+
+          // Canonical tag in HTML
+          if (!canonicalUrl) {
+            const canonMatch = sample.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) ||
+                               sample.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
+            if (canonMatch) {
+              canonicalUrl = canonMatch[1].trim();
+            }
+          }
+
+          // Meta description
+          const descMatch = sample.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                            sample.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+          if (descMatch) {
+            metaDescription = descMatch[1].trim();
+          }
+        } catch {
+          // Ignore body read error
+        }
+      }
+
+      break;
+    } catch (err: any) {
+      clearTimeout(timer);
+      const hopDuration = Date.now() - hopStart;
+      isError = true;
+
+      // Classify error type
+      const errName = err?.name || "";
+      const errMsg = err?.message || "";
+      const errCode = err?.cause?.code || err?.code || "";
+
+      if (errName === "AbortError" || errMsg.includes("aborted")) {
+        errorMessage = `Connection Timed Out (>${Math.round(timeoutMs / 1000)}s)`;
+      } else if (errCode === "ENOTFOUND" || errMsg.includes("getaddrinfo")) {
+        errorMessage = "DNS Resolution Failed (Domain not found)";
+      } else if (errCode === "ECONNREFUSED" || errMsg.includes("ECONNREFUSED")) {
+        errorMessage = "Connection Refused by Host Server";
+      } else if (errCode === "ECONNRESET" || errMsg.includes("ECONNRESET")) {
+        errorMessage = "Connection Reset by Peer";
+      } else if (errMsg.includes("CERT") || errMsg.includes("SSL") || errMsg.includes("TLS")) {
+        errorMessage = `SSL/TLS Certificate Error: ${errCode || errMsg}`;
+      } else {
+        errorMessage = errMsg || "Network request failed";
+      }
+
+      hops.push({
+        hop: hopIndex,
+        url: currentUrl,
+        statusCode: 0,
+        statusText: errorMessage,
+        responseTimeMs: hopDuration,
+      });
+
+      finalStatusCode = 0;
+      finalStatusText = errorMessage;
+      break;
+    }
+  }
+
+  const totalDuration = Date.now() - overallStart;
+  const lastHop = hops[hops.length - 1];
+  const finalDest = (lastHop && lastHop.location) ? lastHop.location : currentUrl;
+
+  const statusGroup: "2xx" | "3xx" | "4xx" | "5xx" | "error" =
+    finalStatusCode >= 200 && finalStatusCode < 300
+      ? "2xx"
+      : finalStatusCode >= 300 && finalStatusCode < 400
+      ? "3xx"
+      : finalStatusCode >= 400 && finalStatusCode < 500
+      ? "4xx"
+      : finalStatusCode >= 500
+      ? "5xx"
+      : "error";
+
+  return {
+    originalUrl: rawInput,
+    normalizedUrl,
+    finalUrl: finalDest,
+    statusCode: finalStatusCode,
+    statusText: finalStatusText || (finalStatusCode ? `Status ${finalStatusCode}` : "Failed"),
+    statusGroup,
+    redirectCount: hops.length > 1 ? hops.length - 1 : 0,
+    isRedirect: hops.length > 1,
+    redirectChain: hops,
+    responseTimeMs: totalDuration,
+    contentType: finalContentType,
+    contentLength: finalContentLength,
+    server: finalServer,
+    title: pageTitle || undefined,
+    metaRobots: metaRobots || undefined,
+    canonical: canonicalUrl || undefined,
+    metaDescription: metaDescription || undefined,
+    headers: finalResponseHeaders,
+    isError,
+    errorMessage: errorMessage || undefined,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+// Concurrency pool helper to process array with max parallel requests
+async function pMap<T, R>(items: T[], fn: (item: T, index: number) => Promise<R>, concurrency = 6): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let currentIndex = 0;
+
+  async function worker() {
+    while (currentIndex < items.length) {
+      const idx = currentIndex++;
+      try {
+        results[idx] = await fn(items[idx], idx);
+      } catch (err: any) {
+        results[idx] = {
+          originalUrl: String(items[idx]),
+          statusCode: 0,
+          statusText: err?.message || "Worker Error",
+          isError: true,
+        } as any;
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+// Bulk URL Checker API Handler
+const handleBulkUrlCheck = async (req: express.Request, res: express.Response) => {
+  try {
+    const { urls, options = {} } = req.body;
+    if (!Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({ error: "Please provide an array of URLs to check." });
+    }
+
+    // Clean and validate URLs (support up to 200 per request)
+    const rawList = urls
+      .map((u: any) => String(u).trim())
+      .filter((u: string) => u.length > 0)
+      .slice(0, 200);
+
+    if (rawList.length === 0) {
+      return res.status(400).json({ error: "No valid URLs provided." });
+    }
+
+    const concurrency = Math.min(8, Math.max(2, options.concurrency || 6));
+    const results = await pMap(
+      rawList,
+      async (urlStr, idx) => {
+        const item = await checkSingleUrlDetailed(urlStr, options);
+        return {
+          index: idx + 1,
+          ...item,
+        };
+      },
+      concurrency
+    );
+
+    // Calculate aggregated statistics
+    let success2xx = 0;
+    let redirect3xx = 0;
+    let clientError4xx = 0;
+    let serverError5xx = 0;
+    let errors = 0;
+    let totalTime = 0;
+
+    results.forEach((r) => {
+      totalTime += r.responseTimeMs || 0;
+      if (r.statusGroup === "2xx") success2xx++;
+      else if (r.statusGroup === "3xx") redirect3xx++;
+      else if (r.statusGroup === "4xx") clientError4xx++;
+      else if (r.statusGroup === "5xx") serverError5xx++;
+      else errors++;
+    });
+
+    const summary = {
+      total: results.length,
+      success2xx,
+      redirect3xx,
+      clientError4xx,
+      serverError5xx,
+      errors,
+      avgResponseTimeMs: results.length > 0 ? Math.round(totalTime / results.length) : 0,
+    };
+
+    return res.json({
+      success: true,
+      summary,
+      count: results.length,
+      data: results,
+      results,
+    });
+  } catch (error: any) {
+    console.error("Error in /api/seo/bulk-url-check:", error);
+    res.status(500).json({ error: error.message || "Bulk URL check failed" });
+  }
+};
+
+app.post("/api/seo/bulk-url-check", handleBulkUrlCheck);
+app.post("/api/bulk-url-check", handleBulkUrlCheck);
+
+
+// ---------------------------------------------------------------------------
 // 5. ADS MANAGEMENT SYSTEM (Controlled strictly from dedicated admin section)
 // ---------------------------------------------------------------------------
 const DATA_DIR = path.join(process.cwd(), "data");

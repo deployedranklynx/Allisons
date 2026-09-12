@@ -14,6 +14,7 @@ import {
   FileCode,
   Code2,
   FileText,
+  CheckCircle2,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -70,6 +71,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "URL Bulk Opener",
           icon: ExternalLink,
           emoji: "📂",
+        },
+        {
+          id: "bulk-url-checker" as ActiveTab,
+          label: "Bulk URL Checker",
+          icon: CheckCircle2,
+          emoji: "🌐",
         },
         {
           id: "url-cleaner" as ActiveTab,

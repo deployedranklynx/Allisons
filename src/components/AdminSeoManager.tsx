@@ -48,6 +48,7 @@ const PAGE_LIST: Array<{ id: string; name: string; path: string; icon: string }>
   { id: "word-html", name: "Word to HTML & HTML to Word", path: "/#word-html", icon: "📝" },
   { id: "markdown-converter", name: "Rich Text to Markdown Suite", path: "/#markdown-converter", icon: "📑" },
   { id: "pdf-editor", name: "Professional PDF Editor", path: "/#pdf-editor", icon: "📄" },
+  { id: "bulk-url-checker", name: "Bulk URL & Redirect Checker", path: "/#bulk-url-checker", icon: "🌐" },
   { id: "blog", name: "Classique Editorial Blog", path: "/#blog", icon: "✍️" },
 ];
 

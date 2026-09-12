@@ -30,6 +30,7 @@ import { AuthModal } from "./components/AuthModal";
 import { WordHtmlConverter } from "./components/WordHtmlConverter";
 import { MarkdownConverter } from "./components/MarkdownConverter";
 import { PdfEditor } from "./components/PdfEditor";
+import { BulkUrlChecker } from "./components/BulkUrlChecker";
 import { fetchCloudActiveAds, fetchCloudSiteSettings } from "./lib/cloudAds";
 
 // Map URL strings/aliases to canonical tabs
@@ -80,6 +81,20 @@ function resolveTab(val: string): ActiveTab | null {
   }
   if (["pdf-editor", "pdf", "edit-pdf", "pdf-edit", "pdf-tool", "pfd-editor", "pfd"].includes(clean)) {
     return "pdf-editor";
+  }
+  if (
+    [
+      "bulk-url-checker",
+      "bulkurlchecker",
+      "url-checker",
+      "status-checker",
+      "http-status",
+      "redirect-checker",
+      "bulk-redirect",
+      "url-status",
+    ].includes(clean)
+  ) {
+    return "bulk-url-checker";
   }
 
   return null;
@@ -136,6 +151,7 @@ const TAB_TITLES: Record<ActiveTab, string> = {
   "word-html": "Word to HTML & HTML to Word Converter - Clean Word Bloat",
   "markdown-converter": "Rich Text to Markdown & Markdown to Rich Text Suite",
   "pdf-editor": "Professional PDF Editor - Add Text, Whiteout, Sign & Save Drafts",
+  "bulk-url-checker": "Bulk URL Status & Redirect Chain Checker - All-in-One SEO Tool",
 };
 
 export default function App() {
@@ -365,6 +381,7 @@ export default function App() {
             {activeTab === "word-html" && <WordHtmlConverter />}
             {activeTab === "markdown-converter" && <MarkdownConverter />}
             {activeTab === "pdf-editor" && <PdfEditor />}
+            {activeTab === "bulk-url-checker" && <BulkUrlChecker />}
             {activeTab === "blog" && (
               <BlogSection
                 ads={ads}

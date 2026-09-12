@@ -179,6 +179,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       ],
       cta: "Launch PDF Editor",
     },
+    {
+      id: "bulk-url-checker" as ActiveTab,
+      name: "Bulk URL & Redirect Checker",
+      tagline: "100% Reliable HTTP Status & Redirect Auditor",
+      description:
+        "Check hundreds of URLs at once for HTTP status codes (200, 301, 302, 404, 500), trace multi-hop redirect chains, inspect server headers, latency, and export full reports.",
+      icon: CheckCircle2,
+      color: "text-emerald-600 bg-emerald-50 border-emerald-100",
+      features: [
+        "Real-time 2xx, 3xx, 4xx, 5xx classification and error detection",
+        "Full multi-hop redirect chain journey and loop prevention",
+        "Simulate Googlebot, Chrome, and Bingbot crawler user-agents",
+      ],
+      cta: "Check URLs Now",
+    },
   ];
 
   const faqs = [

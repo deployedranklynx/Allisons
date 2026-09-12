@@ -10,6 +10,7 @@ export type ActiveTab =
   | "word-html"
   | "markdown-converter"
   | "pdf-editor"
+  | "bulk-url-checker"
   | "admin-ads";
 
 export interface BlogPost {
@@ -277,6 +278,21 @@ export const DEFAULT_PAGE_SEO_CONFIGS: Record<string, PageSeoConfig> = {
     schemaType: "SoftwareApplication",
     author: "RankLynx SEO Team",
   },
+  "bulk-url-checker": {
+    pageId: "bulk-url-checker",
+    pageName: "Bulk URL Status & Redirect Checker",
+    metaTitle: "Bulk URL Checker — Free HTTP Status Code & Redirect Chain Checker | RankLynx",
+    metaDescription: "Test hundreds of URLs simultaneously. Check HTTP status codes (200, 301, 302, 404, 500), trace multi-hop redirect chains, analyze response headers, latency, canonicals, and export to CSV.",
+    focusKeywords: "bulk url checker, http status code checker, bulk redirect checker, check url status, check 404 broken links",
+    secondaryKeywords: "bulk status code checker, trace redirect chain, server response headers, free url audit",
+    canonicalUrl: "https://ranklynx.com/#bulk-url-checker",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "SoftwareApplication",
+    author: "RankLynx SEO Team",
+  },
 };
 
 export const DEFAULT_SITE_CUSTOMIZATION: SiteCustomization = {
@@ -424,3 +440,48 @@ export interface UrlPingResult {
   isRedirect?: boolean;
   redirectChain?: string[];
 }
+
+export interface RedirectHopItem {
+  hop: number;
+  url: string;
+  statusCode: number;
+  statusText: string;
+  location?: string;
+  responseTimeMs: number;
+}
+
+export interface BulkUrlCheckItem {
+  index: number;
+  originalUrl: string;
+  normalizedUrl: string;
+  finalUrl: string;
+  statusCode: number;
+  statusText: string;
+  statusGroup: "2xx" | "3xx" | "4xx" | "5xx" | "error";
+  redirectCount: number;
+  isRedirect: boolean;
+  redirectChain: RedirectHopItem[];
+  responseTimeMs: number;
+  contentType: string;
+  contentLength: string;
+  server: string;
+  title?: string;
+  metaRobots?: string;
+  canonical?: string;
+  metaDescription?: string;
+  headers: Record<string, string>;
+  isError: boolean;
+  errorMessage?: string;
+  checkedAt: string;
+}
+
+export interface BulkUrlCheckSummary {
+  total: number;
+  success2xx: number;
+  redirect3xx: number;
+  clientError4xx: number;
+  serverError5xx: number;
+  errors: number;
+  avgResponseTimeMs: number;
+}
+
