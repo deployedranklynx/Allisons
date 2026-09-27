@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Sparkles,
   FileCheck,
+  QrCode,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -73,6 +74,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "Free Invoice Generator",
           icon: FileCheck,
           emoji: "🧾",
+        },
+        {
+          id: "qr-code-generator" as ActiveTab,
+          label: "QR Code Generator",
+          icon: QrCode,
+          emoji: "📱",
         },
       ],
     },

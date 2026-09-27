@@ -33,6 +33,7 @@ import { PdfEditor } from "./components/PdfEditor";
 import { BulkUrlChecker } from "./components/BulkUrlChecker";
 import { BusinessNameGenerator } from "./components/BusinessNameGenerator";
 import { InvoiceGenerator } from "./components/InvoiceGenerator";
+import { QrCodeGenerator } from "./components/QrCodeGenerator";
 import { AboutPage } from "./components/AboutPage";
 import { ContactPage } from "./components/ContactPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
@@ -129,6 +130,19 @@ function resolveTab(val: string): ActiveTab | null {
   ) {
     return "invoice-generator";
   }
+  if (
+    [
+      "qr-code-generator",
+      "qr",
+      "qrcode",
+      "qr-generator",
+      "qr-code",
+      "barcode",
+      "make-qr",
+    ].includes(clean)
+  ) {
+    return "qr-code-generator";
+  }
   if (["about", "about-us", "our-story"].includes(clean)) {
     return "about";
   }
@@ -199,6 +213,7 @@ const TAB_TITLES: Record<ActiveTab, string> = {
   "bulk-url-checker": "Bulk URL Status & Redirect Chain Checker - All-in-One SEO Tool",
   "business-name-generator": "Free Business Name Generator — Catchy & Brandable Company Names",
   "invoice-generator": "Free Invoice Generator — Professional PDF Invoices Online",
+  "qr-code-generator": "Free QR Code Generator — Custom Colors & Instant PNG Download",
   about: "About RankLynx — Free Professional Webmaster & SEO Suite",
   contact: "Contact RankLynx — Support, Partnerships & Feedback",
   "privacy-policy": "Privacy Policy — RankLynx Webmaster Suite",
@@ -435,6 +450,7 @@ export default function App() {
             {activeTab === "bulk-url-checker" && <BulkUrlChecker />}
             {activeTab === "business-name-generator" && <BusinessNameGenerator ads={ads} />}
             {activeTab === "invoice-generator" && <InvoiceGenerator ads={ads} />}
+            {activeTab === "qr-code-generator" && <QrCodeGenerator ads={ads} />}
             {activeTab === "about" && (
               <AboutPage onSelectTab={(tab) => handleSelectTab(tab, true)} />
             )}

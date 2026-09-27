@@ -13,6 +13,7 @@ export type ActiveTab =
   | "bulk-url-checker"
   | "business-name-generator"
   | "invoice-generator"
+  | "qr-code-generator"
   | "about"
   | "contact"
   | "privacy-policy"
@@ -328,6 +329,21 @@ export const DEFAULT_PAGE_SEO_CONFIGS: Record<string, PageSeoConfig> = {
     twitterCard: "summary_large_image",
     schemaType: "WebApplication",
     author: "RankLynx Financial Tools Team",
+  },
+  "qr-code-generator": {
+    pageId: "qr-code-generator",
+    pageName: "Free QR Code Generator",
+    metaTitle: "Free QR Code Generator — Custom Colors & Instant PNG Download | RankLynx",
+    metaDescription: "Generate custom, high-resolution QR codes instantly for URLs, text, WiFi, and contact cards. Customize colors, adjust error correction, preview live, and download PNG images for free.",
+    focusKeywords: "free qr code generator, qr code maker, generate qr code online, qr code png download, custom color qr code",
+    secondaryKeywords: "create qr code free, qr code generator no sign up, barcode generator, high resolution qr code",
+    canonicalUrl: "https://ranklynx.com/#qr-code-generator",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1595079672139-545c0255a18a?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "WebApplication",
+    author: "RankLynx Utilities Team",
   },
   about: {
     pageId: "about",

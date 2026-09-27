@@ -43,6 +43,8 @@ export const Header: React.FC<HeaderProps> = ({
         return "Free Business Name Generator";
       case "invoice-generator":
         return "Free Invoice Generator & PDF Maker";
+      case "qr-code-generator":
+        return "Free QR Code Generator";
       case "about":
         return "About RankLynx";
       case "contact":

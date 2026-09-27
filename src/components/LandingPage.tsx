@@ -23,6 +23,7 @@ import {
   Code2,
   FileText,
   FileCheck,
+  QrCode,
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -225,6 +226,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       ],
       cta: "Create Free Invoice",
     },
+    {
+      id: "qr-code-generator" as ActiveTab,
+      name: "Free QR Code Generator",
+      tagline: "Instant High-Resolution QR Vector & PNG Maker",
+      description:
+        "Generate custom-colored QR codes for URLs, plain text, WiFi networks, and emails. Preview in real-time, adjust error correction, and download print-ready PNG and SVG images.",
+      icon: QrCode,
+      color: "text-purple-600 bg-purple-50 border-purple-100",
+      features: [
+        "Encode Website URLs, WiFi passwords, contact details & messages",
+        "Customize foreground & background brand colors with live preview",
+        "Export high-res 300 DPI PNGs or scalable vector SVGs with zero watermark",
+      ],
+      cta: "Generate QR Code",
+    },
   ];
 
   const faqs = [
@@ -339,6 +355,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               className="hover:text-[#0984E3] transition-colors cursor-pointer font-medium text-[#475569]"
             >
               Invoice Maker
+            </button>
+            <button
+              onClick={() => onSelectTab("qr-code-generator")}
+              className="hover:text-[#0984E3] transition-colors cursor-pointer font-medium text-[#475569]"
+            >
+              QR Generator
             </button>
             <button
               onClick={() => onSelectTab("blog")}
