@@ -11,6 +11,11 @@ export type ActiveTab =
   | "markdown-converter"
   | "pdf-editor"
   | "bulk-url-checker"
+  | "business-name-generator"
+  | "about"
+  | "contact"
+  | "privacy-policy"
+  | "terms-of-use"
   | "admin-ads";
 
 export interface BlogPost {
@@ -292,6 +297,81 @@ export const DEFAULT_PAGE_SEO_CONFIGS: Record<string, PageSeoConfig> = {
     twitterCard: "summary_large_image",
     schemaType: "SoftwareApplication",
     author: "RankLynx SEO Team",
+  },
+  "business-name-generator": {
+    pageId: "business-name-generator",
+    pageName: "Business Name Generator",
+    metaTitle: "Free Business Name Generator — Catchy & Brandable Company Names | RankLynx",
+    metaDescription: "Generate catchy, creative, and memorable business names instantly. Filter by Modern, Luxury, Simple, Creative, or Tech styles, test domain availability, and save favorites.",
+    focusKeywords: "business name generator, company name generator, brand name ideas, free business names, startup name generator",
+    secondaryKeywords: "catchy business names, luxury brand names, modern company names, domain name generator",
+    canonicalUrl: "https://ranklynx.com/#business-name-generator",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "WebApplication",
+    author: "RankLynx Branding Team",
+  },
+  about: {
+    pageId: "about",
+    pageName: "About Us",
+    metaTitle: "About RankLynx — Free Professional Webmaster & SEO Suite",
+    metaDescription: "Learn about the mission, values, and engineering behind RankLynx: empowering founders, SEOs, and webmasters with fast, private, and powerful free tools.",
+    focusKeywords: "about ranklynx, webmaster suite, free seo tools, digital marketing platform",
+    secondaryKeywords: "seo company, ranklynx mission, webmaster tools",
+    canonicalUrl: "https://ranklynx.com/#about",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "WebSite",
+    author: "RankLynx Team",
+  },
+  contact: {
+    pageId: "contact",
+    pageName: "Contact Us",
+    metaTitle: "Contact RankLynx — Support, Partnerships & Feedback",
+    metaDescription: "Get in touch with the RankLynx engineering and support team for tool suggestions, business inquiries, and sponsorship partnerships.",
+    focusKeywords: "contact ranklynx, seo tool support, business name generator contact",
+    secondaryKeywords: "ranklynx email, feedback, webmaster inquiry",
+    canonicalUrl: "https://ranklynx.com/#contact",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1534536281715-e28d76689b4d?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "WebSite",
+    author: "RankLynx Team",
+  },
+  "privacy-policy": {
+    pageId: "privacy-policy",
+    pageName: "Privacy Policy",
+    metaTitle: "Privacy Policy — RankLynx Webmaster Suite",
+    metaDescription: "Our commitment to user privacy, data security, Google AdSense compliance, and client-side processing transparency across RankLynx utilities.",
+    focusKeywords: "privacy policy, ranklynx privacy, adsense compliance, client side security",
+    secondaryKeywords: "cookie policy, gdpr compliance, ccpa notice",
+    canonicalUrl: "https://ranklynx.com/#privacy-policy",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "WebSite",
+    author: "RankLynx Legal Team",
+  },
+  "terms-of-use": {
+    pageId: "terms-of-use",
+    pageName: "Terms of Use",
+    metaTitle: "Terms of Use — RankLynx Webmaster Suite",
+    metaDescription: "Review the terms and conditions governing the use of RankLynx, including trademark disclaimers, acceptable use policies, and limitations of liability.",
+    focusKeywords: "terms of use, ranklynx terms, user agreement, trademark disclaimer",
+    secondaryKeywords: "acceptable use policy, service terms",
+    canonicalUrl: "https://ranklynx.com/#terms-of-use",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "WebSite",
+    author: "RankLynx Legal Team",
   },
 };
 

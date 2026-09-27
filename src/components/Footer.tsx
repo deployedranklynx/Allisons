@@ -125,9 +125,24 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => 
           {/* Quick Tools Column */}
           <div className="md:col-span-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-3">
-              SEO & Webmaster Tools
+              Webmaster & Brand Tools
             </h4>
             <div className="grid grid-cols-2 gap-2 text-xs font-medium text-[#475569]">
+              <button
+                onClick={() => onSelectTab("business-name-generator")}
+                className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer flex items-center gap-1 font-semibold text-[#0984E3]"
+              >
+                <span>Name Generator</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] bg-blue-100 text-[#0984E3] font-bold uppercase">
+                  New
+                </span>
+              </button>
+              <button
+                onClick={() => onSelectTab("bulk-url-checker")}
+                className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer"
+              >
+                Bulk URL Checker
+              </button>
               <button
                 onClick={() => onSelectTab("link-generator")}
                 className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer"
@@ -167,39 +182,82 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => 
             </div>
           </div>
 
-          {/* Editorial & Webmaster Column */}
+          {/* Company & Legal Column */}
           <div className="md:col-span-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-3">
-              Resources & Editorial
+              Company & Legal
             </h4>
             <div className="flex flex-col gap-2 text-xs font-medium text-[#475569]">
               <button
-                onClick={() => onSelectTab("blog")}
-                className="text-left hover:text-[#0984E3] transition-colors py-1 flex items-center gap-1.5 text-[#0984E3] font-semibold cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Classique Editorial Blog</span>
-              </button>
-              <button
-                onClick={() => onSelectTab("landing")}
+                onClick={() => onSelectTab("about")}
                 className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer"
               >
-                Platform Overview & Guide
+                About Us
+              </button>
+              <button
+                onClick={() => onSelectTab("contact")}
+                className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer"
+              >
+                Contact & Support
+              </button>
+              <button
+                onClick={() => onSelectTab("privacy-policy")}
+                className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer"
+              >
+                Privacy Policy
+              </button>
+              <button
+                onClick={() => onSelectTab("terms-of-use")}
+                className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer"
+              >
+                Terms of Use
+              </button>
+              <button
+                onClick={() => onSelectTab("blog")}
+                className="text-left hover:text-[#0984E3] transition-colors py-1 flex items-center gap-1.5 text-[#0984E3] font-semibold cursor-pointer pt-1"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Editorial Blog</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Lower Footer: Copyright & Disclaimers */}
+        {/* Lower Footer: Copyright & Legal Quick Links */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#94A3B8]">
           <p>
             {siteSettings.footerCopyright ||
-              `© ${currentYear} ${siteSettings.siteName || "RankLynx"}. Free Professional SEO Toolkit.`}
+              `© ${currentYear} ${siteSettings.siteName || "RankLynx"}. Free Professional Webmaster Toolkit.`}
           </p>
-          <p className="text-center sm:text-right">
-            {siteSettings.footerDisclaimer ||
-              "Designed for SEO specialists, outreach teams & digital webmasters."}
-          </p>
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center text-xs">
+            <button
+              onClick={() => onSelectTab("about")}
+              className="hover:text-[#0984E3] transition-colors cursor-pointer"
+            >
+              About
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => onSelectTab("contact")}
+              className="hover:text-[#0984E3] transition-colors cursor-pointer"
+            >
+              Contact
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => onSelectTab("privacy-policy")}
+              className="hover:text-[#0984E3] transition-colors cursor-pointer"
+            >
+              Privacy Policy
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => onSelectTab("terms-of-use")}
+              className="hover:text-[#0984E3] transition-colors cursor-pointer"
+            >
+              Terms of Use
+            </button>
+          </div>
         </div>
       </div>
     </footer>

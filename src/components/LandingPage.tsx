@@ -194,6 +194,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       ],
       cta: "Check URLs Now",
     },
+    {
+      id: "business-name-generator" as ActiveTab,
+      name: "Business Name Generator",
+      tagline: "Instant Brand & Startup Naming Suite",
+      description:
+        "Generate catchy, brandable, and memorable business names tailored to your niche. Choose from Modern, Luxury, Simple, Creative, or Tech styles, test .com availability, and save favorites.",
+      icon: Sparkles,
+      color: "text-amber-600 bg-amber-50 border-amber-100",
+      features: [
+        "Filter by Modern, Luxury, Simple, Creative, Catchy, and Tech archetypes",
+        "Instant .com domain registrar check and phonetic styling",
+        "Save and export session favorites to TXT or clipboard",
+      ],
+      cta: "Generate Names",
+    },
   ];
 
   const faqs = [
@@ -297,6 +312,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             >
               FAQ
             </a>
+            <button
+              onClick={() => onSelectTab("business-name-generator")}
+              className="hover:text-[#0984E3] transition-colors cursor-pointer font-medium text-[#475569]"
+            >
+              Name Generator
+            </button>
             <button
               onClick={() => onSelectTab("blog")}
               className="hover:text-[#0984E3] transition-colors cursor-pointer flex items-center gap-1 font-semibold text-[#0984E3]"

@@ -37,6 +37,18 @@ export const Header: React.FC<HeaderProps> = ({
         return "Keyword Difficulty & Search Intent";
       case "rank-tracker":
         return "Worldwide SERP & Rank Tracker";
+      case "bulk-url-checker":
+        return "Bulk URL Status & Redirect Chain Auditor";
+      case "business-name-generator":
+        return "Free Business Name Generator";
+      case "about":
+        return "About RankLynx";
+      case "contact":
+        return "Contact & Support";
+      case "privacy-policy":
+        return "Privacy Policy";
+      case "terms-of-use":
+        return "Terms of Use";
       default:
         return "SEO Suite & Optimizer";
     }

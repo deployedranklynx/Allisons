@@ -15,6 +15,7 @@ import {
   Code2,
   FileText,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -54,6 +55,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "Classique Blog",
           icon: BookOpen,
           emoji: "📖",
+        },
+      ],
+    },
+    {
+      group: "Branding & Naming",
+      items: [
+        {
+          id: "business-name-generator" as ActiveTab,
+          label: "Business Name Generator",
+          icon: Sparkles,
+          emoji: "✨",
         },
       ],
     },

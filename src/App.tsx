@@ -31,6 +31,11 @@ import { WordHtmlConverter } from "./components/WordHtmlConverter";
 import { MarkdownConverter } from "./components/MarkdownConverter";
 import { PdfEditor } from "./components/PdfEditor";
 import { BulkUrlChecker } from "./components/BulkUrlChecker";
+import { BusinessNameGenerator } from "./components/BusinessNameGenerator";
+import { AboutPage } from "./components/AboutPage";
+import { ContactPage } from "./components/ContactPage";
+import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
+import { TermsOfUsePage } from "./components/TermsOfUsePage";
 import { fetchCloudActiveAds, fetchCloudSiteSettings } from "./lib/cloudAds";
 
 // Map URL strings/aliases to canonical tabs
@@ -96,6 +101,31 @@ function resolveTab(val: string): ActiveTab | null {
   ) {
     return "bulk-url-checker";
   }
+  if (
+    [
+      "business-name-generator",
+      "business-names",
+      "name-generator",
+      "businessnamegenerator",
+      "naming-tool",
+      "brand-name-generator",
+      "names",
+    ].includes(clean)
+  ) {
+    return "business-name-generator";
+  }
+  if (["about", "about-us", "our-story"].includes(clean)) {
+    return "about";
+  }
+  if (["contact", "contact-us", "support", "help"].includes(clean)) {
+    return "contact";
+  }
+  if (["privacy-policy", "privacy", "cookies", "privacy-notice"].includes(clean)) {
+    return "privacy-policy";
+  }
+  if (["terms-of-use", "terms", "terms-and-conditions", "tos"].includes(clean)) {
+    return "terms-of-use";
+  }
 
   return null;
 }
@@ -152,6 +182,11 @@ const TAB_TITLES: Record<ActiveTab, string> = {
   "markdown-converter": "Rich Text to Markdown & Markdown to Rich Text Suite",
   "pdf-editor": "Professional PDF Editor - Add Text, Whiteout, Sign & Save Drafts",
   "bulk-url-checker": "Bulk URL Status & Redirect Chain Checker - All-in-One SEO Tool",
+  "business-name-generator": "Free Business Name Generator — Catchy & Brandable Company Names",
+  about: "About RankLynx — Free Professional Webmaster & SEO Suite",
+  contact: "Contact RankLynx — Support, Partnerships & Feedback",
+  "privacy-policy": "Privacy Policy — RankLynx Webmaster Suite",
+  "terms-of-use": "Terms of Use — RankLynx Webmaster Suite",
 };
 
 export default function App() {
@@ -382,6 +417,13 @@ export default function App() {
             {activeTab === "markdown-converter" && <MarkdownConverter />}
             {activeTab === "pdf-editor" && <PdfEditor />}
             {activeTab === "bulk-url-checker" && <BulkUrlChecker />}
+            {activeTab === "business-name-generator" && <BusinessNameGenerator ads={ads} />}
+            {activeTab === "about" && (
+              <AboutPage onSelectTab={(tab) => handleSelectTab(tab, true)} />
+            )}
+            {activeTab === "contact" && <ContactPage siteSettings={siteSettings} />}
+            {activeTab === "privacy-policy" && <PrivacyPolicyPage siteSettings={siteSettings} />}
+            {activeTab === "terms-of-use" && <TermsOfUsePage siteSettings={siteSettings} />}
             {activeTab === "blog" && (
               <BlogSection
                 ads={ads}
