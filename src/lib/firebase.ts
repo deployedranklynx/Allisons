@@ -186,6 +186,13 @@ export async function getFirebaseAds(): Promise<AdDoc[]> {
 // 4. Save/Update All Ads to Firestore
 export async function saveFirebaseAds(ads: AdDoc[]) {
   try {
+    const snap = await getDocs(collection(db, "ads"));
+    const newIds = new Set(ads.map((a) => a.id));
+    for (const docSnap of snap.docs) {
+      if (!newIds.has(docSnap.id)) {
+        await deleteDoc(doc(db, "ads", docSnap.id));
+      }
+    }
     for (const ad of ads) {
       if (ad.id) {
         await setDoc(doc(db, "ads", ad.id), ad, { merge: true });

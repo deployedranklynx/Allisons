@@ -255,8 +255,11 @@ export default function App() {
     try {
       const res = await fetch("/api/site-settings");
       if (res.ok) {
-        const data = await res.json();
-        if (data) setSiteSettings(data);
+        const ct = res.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
+          const data = await res.json();
+          if (data) setSiteSettings(data);
+        }
       }
     } catch {}
   }, []);
@@ -282,11 +285,14 @@ export default function App() {
       // 2. Fallback: Internal server API
       const res = await fetch("/api/ads");
       if (res.ok) {
-        const data = await res.json();
-        if (data.globalEnabled) {
-          setAds(data.ads || []);
-        } else {
-          setAds([]);
+        const ct = res.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
+          const data = await res.json();
+          if (data.globalEnabled) {
+            setAds(data.ads || []);
+          } else {
+            setAds([]);
+          }
         }
       }
     } catch {

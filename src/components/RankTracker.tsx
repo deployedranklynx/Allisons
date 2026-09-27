@@ -92,25 +92,28 @@ dropshipping software`
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.data)) {
-          const formatted: TrackedKeywordItem[] = data.data.map((item: any, idx: number) => ({
-            id: `track-${Date.now()}-${idx}`,
-            domain: targetDomain,
-            keyword: item.keyword,
-            rank: item.rank,
-            previousRank: item.previousRank,
-            change: item.change,
-            searchEngine: item.searchEngine,
-            country: item.country,
-            city: item.city,
-            device: item.device,
-            rankingUrl: item.rankingUrl,
-            lastUpdated: item.lastUpdated,
-          }));
+        const ct = res.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            const formatted: TrackedKeywordItem[] = data.data.map((item: any, idx: number) => ({
+              id: `track-${Date.now()}-${idx}`,
+              domain: targetDomain,
+              keyword: item.keyword,
+              rank: item.rank,
+              previousRank: item.previousRank,
+              change: item.change,
+              searchEngine: item.searchEngine,
+              country: item.country,
+              city: item.city,
+              device: item.device,
+              rankingUrl: item.rankingUrl,
+              lastUpdated: item.lastUpdated,
+            }));
 
-          setTrackedItems(formatted);
-          return;
+            setTrackedItems(formatted);
+            return;
+          }
         }
       }
 

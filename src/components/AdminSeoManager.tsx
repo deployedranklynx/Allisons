@@ -49,7 +49,14 @@ const PAGE_LIST: Array<{ id: string; name: string; path: string; icon: string }>
   { id: "markdown-converter", name: "Rich Text to Markdown Suite", path: "/#markdown-converter", icon: "📑" },
   { id: "pdf-editor", name: "Professional PDF Editor", path: "/#pdf-editor", icon: "📄" },
   { id: "bulk-url-checker", name: "Bulk URL & Redirect Checker", path: "/#bulk-url-checker", icon: "🌐" },
+  { id: "business-name-generator", name: "Business Name Generator", path: "/#business-name-generator", icon: "✨" },
+  { id: "invoice-generator", name: "Free Invoice Generator", path: "/#invoice-generator", icon: "🧾" },
+  { id: "qr-code-generator", name: "Free QR Code Generator", path: "/#qr-code-generator", icon: "📱" },
   { id: "blog", name: "Classique Editorial Blog", path: "/#blog", icon: "✍️" },
+  { id: "about", name: "About RankLynx", path: "/#about", icon: "ℹ️" },
+  { id: "contact", name: "Contact & Support", path: "/#contact", icon: "📬" },
+  { id: "privacy-policy", name: "Privacy Policy", path: "/#privacy-policy", icon: "🔒" },
+  { id: "terms-of-use", name: "Terms of Use", path: "/#terms-of-use", icon: "⚖️" },
 ];
 
 export const AdminSeoManager: React.FC<AdminSeoManagerProps> = ({

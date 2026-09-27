@@ -90,8 +90,26 @@ export const Header: React.FC<HeaderProps> = ({
           {getTabTitle(activeTab)}
         </h2>
 
-        {/* Quick Jump Action Pills matching Clean Minimalism theme */}
-        <div className="hidden md:flex items-center gap-2">
+        {/* Compact buttons for md to xl screens */}
+        <div className="hidden md:flex xl:hidden items-center gap-1.5 shrink-0">
+          <button
+            onClick={() => setActiveTab("landing")}
+            className="px-2.5 py-1 text-xs border border-[#E9ECEF] rounded-md hover:bg-gray-50 text-[#636E72] transition-colors flex items-center gap-1"
+          >
+            <Home className="w-3.5 h-3.5 text-[#0984E3]" />
+            <span>Home</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("blog")}
+            className="px-2.5 py-1 text-xs border border-blue-200 bg-blue-50/60 hover:bg-blue-100/70 rounded-md text-[#0984E3] font-semibold transition-colors flex items-center gap-1"
+          >
+            <BookOpen className="w-3 h-3 text-[#0984E3]" />
+            <span>Blog</span>
+          </button>
+        </div>
+
+        {/* Quick Jump Action Pills matching Clean Minimalism theme on large screens */}
+        <div className="hidden xl:flex items-center gap-2 shrink-0">
           <button
             onClick={() => setActiveTab("landing")}
             className="px-3 py-1 text-xs border border-[#E9ECEF] rounded-md hover:bg-gray-50 text-[#636E72] transition-colors flex items-center gap-1.5"

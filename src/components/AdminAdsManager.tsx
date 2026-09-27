@@ -93,10 +93,13 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setGlobalEnabled(data.globalEnabled ?? true);
-        setAds(data.ads || []);
-        if (data.adminPasskey) setAdminPasskey(data.adminPasskey);
+        const ct = res.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
+          const data = await res.json();
+          setGlobalEnabled(data.globalEnabled ?? true);
+          setAds(data.ads || []);
+          if (data.adminPasskey) setAdminPasskey(data.adminPasskey);
+        }
       }
     } catch (err: any) {
       console.warn("Could not load cloud ads config, using defaults:", err);
@@ -140,14 +143,17 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          sessionStorage.setItem("admin_auth_token", data.token);
-          sessionStorage.setItem("admin_raw_passkey", enteredKey);
-          setIsAuthenticated(true);
-          setPasskeyInput("");
-          await fetchAdminAds();
-          return;
+        const ct = res.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
+          const data = await res.json();
+          if (data.success) {
+            sessionStorage.setItem("admin_auth_token", data.token);
+            sessionStorage.setItem("admin_raw_passkey", enteredKey);
+            setIsAuthenticated(true);
+            setPasskeyInput("");
+            await fetchAdminAds();
+            return;
+          }
         }
       }
 

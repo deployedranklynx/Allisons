@@ -113,7 +113,8 @@ https://reddit.com`
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ urls: urlList }),
         });
-        if (response.ok) {
+        const ct = response.headers.get("content-type");
+        if (response.ok && ct && ct.includes("application/json")) {
           data = await response.json();
         }
       } catch {
@@ -123,7 +124,8 @@ https://reddit.com`
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ urls: urlList }),
         });
-        if (response2.ok) {
+        const ct2 = response2.headers.get("content-type");
+        if (response2.ok && ct2 && ct2.includes("application/json")) {
           data = await response2.json();
         }
       }

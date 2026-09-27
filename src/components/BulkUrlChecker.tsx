@@ -203,9 +203,17 @@ export function BulkUrlChecker() {
             if (!fallbackRes.ok) {
               throw new Error(`Server returned HTTP ${res.status}`);
             }
+            const fbCt = fallbackRes.headers.get("content-type");
+            if (!fbCt || !fbCt.includes("application/json")) {
+              throw new Error("Endpoint returned non-JSON (static hosting redirect)");
+            }
             const fbData = await fallbackRes.json();
             batchResults = fbData.results || fbData.data || [];
           } else {
+            const ct = res.headers.get("content-type");
+            if (!ct || !ct.includes("application/json")) {
+              throw new Error("Endpoint returned non-JSON (static hosting redirect)");
+            }
             const data = await res.json();
             batchResults = data.results || data.data || [];
           }

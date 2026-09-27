@@ -45,10 +45,13 @@ export const DomainMetricsChecker: React.FC = () => {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.data)) {
-          setResults(data.data);
-          return;
+        const ct = res.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            setResults(data.data);
+            return;
+          }
         }
       }
       // Graceful fallback for static deployments (Netlify, Vercel, GitHub Pages)
