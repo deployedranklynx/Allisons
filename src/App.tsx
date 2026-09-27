@@ -34,6 +34,8 @@ import { BulkUrlChecker } from "./components/BulkUrlChecker";
 import { BusinessNameGenerator } from "./components/BusinessNameGenerator";
 import { InvoiceGenerator } from "./components/InvoiceGenerator";
 import { QrCodeGenerator } from "./components/QrCodeGenerator";
+import { MetaTagAnalyzer } from "./components/MetaTagAnalyzer";
+import { XmlSitemapGenerator } from "./components/XmlSitemapGenerator";
 import { AboutPage } from "./components/AboutPage";
 import { ContactPage } from "./components/ContactPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
@@ -143,6 +145,33 @@ function resolveTab(val: string): ActiveTab | null {
   ) {
     return "qr-code-generator";
   }
+  if (
+    [
+      "meta-tag-analyzer",
+      "meta-tags",
+      "meta-tag",
+      "meta-analyzer",
+      "metatags",
+      "opengraph",
+      "og-checker",
+      "metataganalyzer",
+    ].includes(clean)
+  ) {
+    return "meta-tag-analyzer";
+  }
+  if (
+    [
+      "xml-sitemap-generator",
+      "sitemap-generator",
+      "xml-sitemap",
+      "sitemap",
+      "sitemaps",
+      "xmlsitemap",
+      "sitemap-maker",
+    ].includes(clean)
+  ) {
+    return "xml-sitemap-generator";
+  }
   if (["about", "about-us", "our-story"].includes(clean)) {
     return "about";
   }
@@ -214,6 +243,8 @@ const TAB_TITLES: Record<ActiveTab, string> = {
   "business-name-generator": "Free Business Name Generator — Catchy & Brandable Company Names",
   "invoice-generator": "Free Invoice Generator — Professional PDF Invoices Online",
   "qr-code-generator": "Free QR Code Generator — Custom Colors & Instant PNG Download",
+  "meta-tag-analyzer": "Free Meta Tag Analyzer & Open Graph Checker — Live SEO Audit",
+  "xml-sitemap-generator": "Free XML Sitemap Generator — Generate & Download sitemap.xml",
   about: "About RankLynx — Free Professional Webmaster & SEO Suite",
   contact: "Contact RankLynx — Support, Partnerships & Feedback",
   "privacy-policy": "Privacy Policy — RankLynx Webmaster Suite",
@@ -457,6 +488,8 @@ export default function App() {
             {activeTab === "business-name-generator" && <BusinessNameGenerator ads={ads} />}
             {activeTab === "invoice-generator" && <InvoiceGenerator ads={ads} />}
             {activeTab === "qr-code-generator" && <QrCodeGenerator ads={ads} />}
+            {activeTab === "meta-tag-analyzer" && <MetaTagAnalyzer ads={ads} />}
+            {activeTab === "xml-sitemap-generator" && <XmlSitemapGenerator ads={ads} />}
             {activeTab === "about" && (
               <AboutPage onSelectTab={(tab) => handleSelectTab(tab, true)} />
             )}

@@ -45,6 +45,10 @@ export const Header: React.FC<HeaderProps> = ({
         return "Free Invoice Generator & PDF Maker";
       case "qr-code-generator":
         return "Free QR Code Generator";
+      case "meta-tag-analyzer":
+        return "Meta Tag Analyzer & Open Graph Checker";
+      case "xml-sitemap-generator":
+        return "Free XML Sitemap Generator";
       case "about":
         return "About RankLynx";
       case "contact":

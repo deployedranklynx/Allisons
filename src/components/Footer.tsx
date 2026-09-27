@@ -119,6 +119,17 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => 
                 <FileCode className="w-3 h-3 text-emerald-600" />
                 <span>ads.txt</span>
               </a>
+              {/* sitemap.xml direct link */}
+              <a
+                href="/sitemap.xml"
+                target="_blank"
+                rel="noreferrer"
+                title="View live XML sitemap"
+                className="px-2 py-1 rounded text-[11px] font-semibold bg-blue-50 text-[#0984E3] border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1"
+              >
+                <Globe className="w-3 h-3 text-[#0984E3]" />
+                <span>sitemap.xml</span>
+              </a>
             </div>
           </div>
 
@@ -128,6 +139,24 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => 
               Webmaster & Brand Tools
             </h4>
             <div className="grid grid-cols-2 gap-2 text-xs font-medium text-[#475569]">
+              <button
+                onClick={() => onSelectTab("meta-tag-analyzer")}
+                className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer flex items-center gap-1 font-semibold text-[#0984E3]"
+              >
+                <span>Meta Analyzer</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] bg-blue-100 text-[#0984E3] font-bold uppercase">
+                  New
+                </span>
+              </button>
+              <button
+                onClick={() => onSelectTab("xml-sitemap-generator")}
+                className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer flex items-center gap-1 font-semibold text-[#0984E3]"
+              >
+                <span>Sitemap XML</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-100 text-emerald-700 font-bold uppercase">
+                  Free
+                </span>
+              </button>
               <button
                 onClick={() => onSelectTab("business-name-generator")}
                 className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer flex items-center gap-1 font-semibold text-[#0984E3]"

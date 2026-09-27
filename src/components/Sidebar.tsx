@@ -8,6 +8,7 @@ import {
   ExternalLink,
   BarChart3,
   Search,
+  Globe,
   Globe2,
   X,
   BookOpen,
@@ -57,6 +58,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "Classique Blog",
           icon: BookOpen,
           emoji: "📖",
+        },
+      ],
+    },
+    {
+      group: "On-Page SEO & Webmaster",
+      items: [
+        {
+          id: "meta-tag-analyzer" as ActiveTab,
+          label: "Meta Tag Analyzer",
+          icon: Globe,
+          emoji: "🏷️",
+        },
+        {
+          id: "xml-sitemap-generator" as ActiveTab,
+          label: "XML Sitemap Generator",
+          icon: FileCode,
+          emoji: "🗺️",
         },
       ],
     },

@@ -52,6 +52,8 @@ const PAGE_LIST: Array<{ id: string; name: string; path: string; icon: string }>
   { id: "business-name-generator", name: "Business Name Generator", path: "/#business-name-generator", icon: "✨" },
   { id: "invoice-generator", name: "Free Invoice Generator", path: "/#invoice-generator", icon: "🧾" },
   { id: "qr-code-generator", name: "Free QR Code Generator", path: "/#qr-code-generator", icon: "📱" },
+  { id: "meta-tag-analyzer", name: "Meta Tag Analyzer & OG Inspector", path: "/#meta-tag-analyzer", icon: "🏷️" },
+  { id: "xml-sitemap-generator", name: "XML Sitemap Generator (sitemap.xml)", path: "/#xml-sitemap-generator", icon: "🗺️" },
   { id: "blog", name: "Classique Editorial Blog", path: "/#blog", icon: "✍️" },
   { id: "about", name: "About RankLynx", path: "/#about", icon: "ℹ️" },
   { id: "contact", name: "Contact & Support", path: "/#contact", icon: "📬" },

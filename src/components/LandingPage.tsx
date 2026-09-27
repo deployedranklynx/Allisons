@@ -8,6 +8,7 @@ import {
   ExternalLink,
   BarChart3,
   Search,
+  Globe,
   Globe2,
   ArrowRight,
   CheckCircle2,
@@ -243,6 +244,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         "Export high-res 300 DPI PNGs or scalable vector SVGs with zero watermark",
       ],
       cta: "Generate QR Code",
+    },
+    {
+      id: "meta-tag-analyzer" as ActiveTab,
+      name: "Meta Tag Analyzer",
+      tagline: "Live Title, Description & Open Graph Inspector",
+      description:
+        "Inspect, analyze, and optimize any URL's title tag, meta description, keywords, Open Graph, Twitter cards, and robots tags. Check SEO length limits, identify missing tags, and preview Google SERP snippets instantly.",
+      icon: Globe,
+      color: "text-blue-600 bg-blue-50 border-blue-100",
+      features: [
+        "Audit Title, Meta Description & Keywords character limits",
+        "Inspect Open Graph (og:title, og:image) and Twitter Cards",
+        "Live Google desktop & mobile SERP snippet preview with one-click head snippet copy",
+      ],
+      cta: "Analyze Meta Tags",
+    },
+    {
+      id: "xml-sitemap-generator" as ActiveTab,
+      name: "XML Sitemap Generator",
+      tagline: "Search Engine Compliant sitemap.xml Builder",
+      description:
+        "Create clean, Google and Bing compliant XML sitemaps in seconds. Add custom URLs, configure priority, change frequency, and lastmod dates, preview XML code live, and download standard sitemap.xml for free.",
+      icon: FileCode,
+      color: "text-teal-600 bg-teal-50 border-teal-100",
+      features: [
+        "Standard sitemap.xml protocol 0.9 compliant schema",
+        "Quick preset templates for SaaS, E-Commerce, Blog & Local Business",
+        "Export downloadable sitemap.xml or copy to clipboard with real-time file size check",
+      ],
+      cta: "Generate Sitemap XML",
     },
   ];
 
@@ -487,6 +518,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   Featured Free Tools
                 </div>
                 <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      onSelectTab("meta-tag-analyzer");
+                    }}
+                    className="p-2.5 text-left rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0984E3] text-xs font-semibold flex items-center gap-2 cursor-pointer"
+                  >
+                    <Globe className="w-4 h-4 text-[#0984E3]" />
+                    <span>Meta Analyzer</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      onSelectTab("xml-sitemap-generator");
+                    }}
+                    className="p-2.5 text-left rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-semibold flex items-center gap-2 cursor-pointer"
+                  >
+                    <FileCode className="w-4 h-4 text-teal-600" />
+                    <span>XML Sitemap</span>
+                  </button>
                   <button
                     onClick={() => {
                       setIsMobileMenuOpen(false);

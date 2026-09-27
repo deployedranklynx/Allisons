@@ -14,6 +14,8 @@ export type ActiveTab =
   | "business-name-generator"
   | "invoice-generator"
   | "qr-code-generator"
+  | "meta-tag-analyzer"
+  | "xml-sitemap-generator"
   | "about"
   | "contact"
   | "privacy-policy"
@@ -345,6 +347,36 @@ export const DEFAULT_PAGE_SEO_CONFIGS: Record<string, PageSeoConfig> = {
     schemaType: "WebApplication",
     author: "RankLynx Utilities Team",
   },
+  "meta-tag-analyzer": {
+    pageId: "meta-tag-analyzer",
+    pageName: "Meta Tag Analyzer",
+    metaTitle: "Free Meta Tag Analyzer & Open Graph Checker — Live SEO Audit | RankLynx",
+    metaDescription: "Inspect, analyze, and optimize any URL's title tag, meta description, keywords, Open Graph, Twitter cards, and robots tags. Check SEO length limits, identify missing tags, and preview Google SERP snippets instantly.",
+    focusKeywords: "meta tag analyzer, open graph checker, meta tags inspect, seo title length checker, twitter card preview, meta description analyzer",
+    secondaryKeywords: "social share preview, serp snippet generator, og tags audit, inspect meta tags online",
+    canonicalUrl: "https://ranklynx.com/#meta-tag-analyzer",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "WebApplication",
+    author: "RankLynx SEO Intelligence Team",
+  },
+  "xml-sitemap-generator": {
+    pageId: "xml-sitemap-generator",
+    pageName: "XML Sitemap Generator",
+    metaTitle: "Free XML Sitemap Generator — Generate & Download sitemap.xml | RankLynx",
+    metaDescription: "Create clean, Google and Bing compliant XML sitemaps in seconds. Add custom URLs, configure priority, change frequency, and lastmod dates, preview XML code live, and download standard sitemap.xml for free.",
+    focusKeywords: "xml sitemap generator, generate sitemap xml, create sitemap online, free sitemap generator, google sitemap builder",
+    secondaryKeywords: "download sitemap xml, seo sitemap creator, website sitemap maker, sitemap index",
+    canonicalUrl: "https://ranklynx.com/#xml-sitemap-generator",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "WebApplication",
+    author: "RankLynx Technical SEO Team",
+  },
   about: {
     pageId: "about",
     pageName: "About Us",
@@ -596,4 +628,87 @@ export interface BulkUrlCheckSummary {
   errors: number;
   avgResponseTimeMs: number;
 }
+
+export interface MetaTagAnalysisResult {
+  url: string;
+  resolvedUrl: string;
+  statusCode: number;
+  responseTimeMs: number;
+  title: {
+    value: string;
+    length: number;
+    status: "optimal" | "too_short" | "too_long" | "missing";
+    recommendation: string;
+  };
+  description: {
+    value: string;
+    length: number;
+    status: "optimal" | "too_short" | "too_long" | "missing";
+    recommendation: string;
+  };
+  keywords: {
+    value: string;
+    count: number;
+    status: "present" | "missing";
+  };
+  canonical: {
+    value: string;
+    status: "matched" | "different" | "missing";
+    isSelfReferencing: boolean;
+  };
+  robots: {
+    value: string;
+    isIndexable: boolean;
+    isFollowable: boolean;
+  };
+  viewport: {
+    value: string;
+    isMobileFriendly: boolean;
+  };
+  charset: {
+    value: string;
+  };
+  favicon: {
+    value: string;
+  };
+  openGraph: {
+    title?: string;
+    description?: string;
+    image?: string;
+    url?: string;
+    type?: string;
+    siteName?: string;
+    locale?: string;
+  };
+  twitterCard: {
+    card?: string;
+    title?: string;
+    description?: string;
+    image?: string;
+    site?: string;
+    creator?: string;
+  };
+  seoScore: number;
+  auditItems: Array<{
+    id: string;
+    category: "title" | "description" | "social" | "indexing" | "technical";
+    title: string;
+    status: "pass" | "warn" | "fail";
+    message: string;
+    recommendation?: string;
+  }>;
+  analyzedAt: string;
+}
+
+export interface SitemapUrlEntry {
+  id: string;
+  loc: string;
+  lastmod: string;
+  changefreq: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
+  priority: string;
+  includeLastmod: boolean;
+  includeChangefreq: boolean;
+  includePriority: boolean;
+}
+
 
