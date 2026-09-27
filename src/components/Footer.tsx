@@ -138,6 +138,15 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => 
                 </span>
               </button>
               <button
+                onClick={() => onSelectTab("invoice-generator")}
+                className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer flex items-center gap-1 font-semibold text-[#0984E3]"
+              >
+                <span>Invoice Generator</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-100 text-emerald-700 font-bold uppercase">
+                  Free
+                </span>
+              </button>
+              <button
                 onClick={() => onSelectTab("bulk-url-checker")}
                 className="text-left hover:text-[#0984E3] transition-colors py-1 cursor-pointer"
               >

@@ -12,6 +12,7 @@ export type ActiveTab =
   | "pdf-editor"
   | "bulk-url-checker"
   | "business-name-generator"
+  | "invoice-generator"
   | "about"
   | "contact"
   | "privacy-policy"
@@ -312,6 +313,21 @@ export const DEFAULT_PAGE_SEO_CONFIGS: Record<string, PageSeoConfig> = {
     twitterCard: "summary_large_image",
     schemaType: "WebApplication",
     author: "RankLynx Branding Team",
+  },
+  "invoice-generator": {
+    pageId: "invoice-generator",
+    pageName: "Free Invoice Generator",
+    metaTitle: "Free Invoice Generator — Professional PDF Invoices Online | RankLynx",
+    metaDescription: "Create clean, professional invoices in seconds. Add line items, taxes, discounts, choose global currencies, preview live, and download high-resolution PDF invoices for free.",
+    focusKeywords: "free invoice generator, invoice maker, create invoice pdf, online invoice generator, freelance invoice template",
+    secondaryKeywords: "billing software, estimate generator, professional invoice pdf, receipt maker",
+    canonicalUrl: "https://ranklynx.com/#invoice-generator",
+    robotsDirective: "index, follow",
+    ogType: "website",
+    ogImageUrl: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1200&auto=format&fit=crop&q=80",
+    twitterCard: "summary_large_image",
+    schemaType: "WebApplication",
+    author: "RankLynx Financial Tools Team",
   },
   about: {
     pageId: "about",

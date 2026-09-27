@@ -22,6 +22,7 @@ import {
   FileCode,
   Code2,
   FileText,
+  FileCheck,
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -209,6 +210,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       ],
       cta: "Generate Names",
     },
+    {
+      id: "invoice-generator" as ActiveTab,
+      name: "Free Invoice Generator",
+      tagline: "Professional PDF Invoicing & Billing Maker",
+      description:
+        "Create, preview, and download audit-proof PDF invoices. Add customizable line items, calculate taxes & discounts automatically, support 10+ currencies, and download vector PDFs.",
+      icon: FileCheck,
+      color: "text-emerald-600 bg-emerald-50 border-emerald-100",
+      features: [
+        "Automatic subtotal, tax, discount & shipping calculations",
+        "Over 10 global currencies (USD, EUR, GBP, CAD, AUD, etc.)",
+        "Download vector PDF directly in browser with no watermark",
+      ],
+      cta: "Create Free Invoice",
+    },
   ];
 
   const faqs = [
@@ -317,6 +333,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               className="hover:text-[#0984E3] transition-colors cursor-pointer font-medium text-[#475569]"
             >
               Name Generator
+            </button>
+            <button
+              onClick={() => onSelectTab("invoice-generator")}
+              className="hover:text-[#0984E3] transition-colors cursor-pointer font-medium text-[#475569]"
+            >
+              Invoice Maker
             </button>
             <button
               onClick={() => onSelectTab("blog")}

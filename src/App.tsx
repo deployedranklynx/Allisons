@@ -32,6 +32,7 @@ import { MarkdownConverter } from "./components/MarkdownConverter";
 import { PdfEditor } from "./components/PdfEditor";
 import { BulkUrlChecker } from "./components/BulkUrlChecker";
 import { BusinessNameGenerator } from "./components/BusinessNameGenerator";
+import { InvoiceGenerator } from "./components/InvoiceGenerator";
 import { AboutPage } from "./components/AboutPage";
 import { ContactPage } from "./components/ContactPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
@@ -114,6 +115,20 @@ function resolveTab(val: string): ActiveTab | null {
   ) {
     return "business-name-generator";
   }
+  if (
+    [
+      "invoice-generator",
+      "invoice",
+      "invoices",
+      "invoice-maker",
+      "invoice-creator",
+      "free-invoice",
+      "invoicing",
+      "billing",
+    ].includes(clean)
+  ) {
+    return "invoice-generator";
+  }
   if (["about", "about-us", "our-story"].includes(clean)) {
     return "about";
   }
@@ -183,6 +198,7 @@ const TAB_TITLES: Record<ActiveTab, string> = {
   "pdf-editor": "Professional PDF Editor - Add Text, Whiteout, Sign & Save Drafts",
   "bulk-url-checker": "Bulk URL Status & Redirect Chain Checker - All-in-One SEO Tool",
   "business-name-generator": "Free Business Name Generator — Catchy & Brandable Company Names",
+  "invoice-generator": "Free Invoice Generator — Professional PDF Invoices Online",
   about: "About RankLynx — Free Professional Webmaster & SEO Suite",
   contact: "Contact RankLynx — Support, Partnerships & Feedback",
   "privacy-policy": "Privacy Policy — RankLynx Webmaster Suite",
@@ -418,6 +434,7 @@ export default function App() {
             {activeTab === "pdf-editor" && <PdfEditor />}
             {activeTab === "bulk-url-checker" && <BulkUrlChecker />}
             {activeTab === "business-name-generator" && <BusinessNameGenerator ads={ads} />}
+            {activeTab === "invoice-generator" && <InvoiceGenerator ads={ads} />}
             {activeTab === "about" && (
               <AboutPage onSelectTab={(tab) => handleSelectTab(tab, true)} />
             )}
