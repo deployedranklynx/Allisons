@@ -90,16 +90,26 @@ export async function recordCloudAdClick(adId: string) {
 
 // Verify Admin Passkey against Firebase Cloud
 export async function verifyCloudAdminPasskey(passkey: string): Promise<boolean> {
+  const cleanKey = passkey.trim();
+  // Immediate match for user configured master passkey
+  if (cleanKey === "MEZ-Admin123") {
+    return true;
+  }
+
   try {
     await ensureFirebaseAdsInitialized();
     const settings = await getFirebaseAdminSettings();
-    const cleanKey = passkey.trim();
-    // Verify against Firestore cloud passkey (or initial default admin123)
-    return cleanKey === (settings.adminPasskey || "admin123");
+    // Verify against Firestore cloud passkey (or MEZ-Admin123 / admin123)
+    const cloudKey = settings.adminPasskey || "MEZ-Admin123";
+    return (
+      cleanKey === cloudKey ||
+      cleanKey === "MEZ-Admin123" ||
+      cleanKey === "admin123"
+    );
   } catch (err) {
     console.error("verifyCloudAdminPasskey error:", err);
-    // Fallback: if network or cloud initialization delay, default passkey works
-    return passkey.trim() === "admin123";
+    // Fallback: if network or cloud initialization delay, passkeys work
+    return cleanKey === "MEZ-Admin123" || cleanKey === "admin123";
   }
 }
 
@@ -115,14 +125,14 @@ export async function fetchCloudAdminConfig(): Promise<{
     const rawAds = await getFirebaseAds();
     return {
       globalEnabled: settings.globalEnabled ?? true,
-      adminPasskey: settings.adminPasskey || "admin123",
+      adminPasskey: settings.adminPasskey || "MEZ-Admin123",
       ads: rawAds.map(toAdItem),
     };
   } catch (err) {
     console.error("fetchCloudAdminConfig error:", err);
     return {
       globalEnabled: true,
-      adminPasskey: "admin123",
+      adminPasskey: "MEZ-Admin123",
       ads: [],
     };
   }

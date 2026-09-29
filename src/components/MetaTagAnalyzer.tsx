@@ -102,7 +102,9 @@ export const MetaTagAnalyzer: React.FC<MetaTagAnalyzerProps> = ({ ads = [] }) =>
       charset: {
         value: "UTF-8",
       },
-      favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+      favicon: {
+        value: `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+      },
       openGraph: {
         title: `${brandName} — Official Platform & Webmaster Resources`,
         description: `Welcome to ${brandName}. Discover top-rated online software and high-performance tools designed for web developers.`,

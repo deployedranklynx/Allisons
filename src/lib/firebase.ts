@@ -109,11 +109,20 @@ export async function ensureFirebaseAdsInitialized() {
 
     if (!settingsSnap.exists()) {
       await setDoc(settingsRef, {
-        adminPasskey: "admin123",
+        adminPasskey: "MEZ-Admin123",
         globalEnabled: true,
         updatedAt: new Date().toISOString(),
       });
-      console.log("[Firebase Cloud] Initialized default admin settings.");
+      console.log("[Firebase Cloud] Initialized default admin settings with MEZ-Admin123.");
+    } else {
+      const existingData = settingsSnap.data();
+      // If still legacy default "admin123" or empty, upgrade to user-requested MEZ-Admin123
+      if (!existingData.adminPasskey || existingData.adminPasskey === "admin123") {
+        await updateDoc(settingsRef, {
+          adminPasskey: "MEZ-Admin123",
+          updatedAt: new Date().toISOString(),
+        }).catch(() => {});
+      }
     }
 
     const adsSnap = await getDocs(collection(db, "ads"));
@@ -136,7 +145,7 @@ export async function getFirebaseAdminSettings(): Promise<AdminSettingsDoc> {
     if (settingsSnap.exists()) {
       const data = settingsSnap.data() as AdminSettingsDoc;
       return {
-        adminPasskey: data.adminPasskey || "admin123",
+        adminPasskey: data.adminPasskey || "MEZ-Admin123",
         globalEnabled: data.globalEnabled ?? true,
         updatedAt: data.updatedAt || new Date().toISOString(),
       };
@@ -145,7 +154,7 @@ export async function getFirebaseAdminSettings(): Promise<AdminSettingsDoc> {
     console.error("[Firebase Cloud] getFirebaseAdminSettings error:", err);
   }
   return {
-    adminPasskey: "admin123",
+    adminPasskey: "MEZ-Admin123",
     globalEnabled: true,
     updatedAt: new Date().toISOString(),
   };

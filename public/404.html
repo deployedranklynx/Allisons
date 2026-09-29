@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RankLynx Redirecting...</title>
+  <script>
+    // SPA Single Page App 404 fallback
+    var pathname = window.location.pathname.replace(/^\/+/, '');
+    var search = window.location.search;
+    var hash = window.location.hash;
+    window.location.replace('/?route=' + encodeURIComponent(pathname) + (search ? '&' + search.substring(1) : '') + hash);
+  </script>
+</head>
+<body style="font-family:sans-serif; text-align:center; padding: 40px; color: #4b5563;">
+  <p>Loading RankLynx...</p>
+</body>
+</html>

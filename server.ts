@@ -1328,7 +1328,7 @@ if (!fs.existsSync(DATA_DIR)) {
 
 const DEFAULT_ADS_CONFIG = {
   globalEnabled: true,
-  adminPasskey: "admin123",
+  adminPasskey: "MEZ-Admin123",
   ads: [
     {
       id: "ad-top-banner",
@@ -1451,11 +1451,11 @@ app.post("/api/ads/track-click", (req, res) => {
 // 5C. Admin: Verify Admin Passkey
 app.post("/api/admin/verify-passkey", (req, res) => {
   const { passkey } = req.body;
-  const currentKey = (inMemoryAds.adminPasskey || "admin123").trim();
+  const currentKey = (inMemoryAds.adminPasskey || "MEZ-Admin123").trim();
   const inputKey = (passkey || "").trim();
 
-  // Accept current passkey or fallback default passkey
-  if (inputKey === currentKey || inputKey === "admin123") {
+  // Accept current passkey, primary MEZ-Admin123, or fallback passkey
+  if (inputKey === currentKey || inputKey === "MEZ-Admin123" || inputKey === "admin123") {
     const token = "adm_tok_" + Buffer.from(currentKey).toString("base64");
     return res.json({ success: true, token });
   }
@@ -1466,7 +1466,7 @@ app.post("/api/admin/verify-passkey", (req, res) => {
 app.get("/api/admin/ads", (req, res) => {
   const authHeader = (req.headers.authorization || "").trim();
   const queryKey = ((req.query.passkey as string) || "").trim();
-  const currentKey = (inMemoryAds.adminPasskey || "admin123").trim();
+  const currentKey = (inMemoryAds.adminPasskey || "MEZ-Admin123").trim();
 
   const isAuth =
     authHeader === `Bearer ${currentKey}` ||
@@ -1474,6 +1474,7 @@ app.get("/api/admin/ads", (req, res) => {
     authHeader === "Bearer cloud_admin_token" ||
     authHeader === "Bearer master_admin_token" ||
     queryKey === currentKey ||
+    queryKey === "MEZ-Admin123" ||
     queryKey === "admin123";
 
   if (!isAuth) {
@@ -1492,11 +1493,12 @@ app.get("/api/admin/ads", (req, res) => {
 app.post("/api/admin/ads", (req, res) => {
   const authHeader = (req.headers.authorization || "").trim();
   const { passkey, globalEnabled, ads, newPasskey } = req.body;
-  const currentKey = (inMemoryAds.adminPasskey || "admin123").trim();
+  const currentKey = (inMemoryAds.adminPasskey || "MEZ-Admin123").trim();
   const cleanPasskey = (passkey || "").trim();
 
   const isAuth =
     cleanPasskey === currentKey ||
+    cleanPasskey === "MEZ-Admin123" ||
     cleanPasskey === "admin123" ||
     authHeader === `Bearer ${currentKey}` ||
     authHeader === `Bearer adm_tok_${Buffer.from(currentKey).toString("base64")}` ||
@@ -1656,7 +1658,7 @@ app.get("/api/site-settings", (req, res) => {
 // Admin Site Settings API (save branding, footer, ads.txt, AdSense codes)
 app.post("/api/admin/site-settings", (req, res) => {
   const authHeader = (req.headers.authorization || "").trim();
-  const currentKey = (inMemoryAds.adminPasskey || "admin123").trim();
+  const currentKey = (inMemoryAds.adminPasskey || "MEZ-Admin123").trim();
 
   const isAuth =
     authHeader === `Bearer ${currentKey}` ||
@@ -1664,6 +1666,7 @@ app.post("/api/admin/site-settings", (req, res) => {
     authHeader === "Bearer cloud_admin_token" ||
     authHeader === "Bearer master_admin_token" ||
     req.body.passkey === currentKey ||
+    req.body.passkey === "MEZ-Admin123" ||
     req.body.passkey === "admin123";
 
   if (!isAuth) {

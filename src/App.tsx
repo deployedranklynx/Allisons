@@ -51,11 +51,21 @@ function resolveTab(val: string): ActiveTab | null {
   if (
     [
       "admin-ads",
+      "admin",
+      "adminads",
+      "admin_ads",
+      "admin-ad",
+      "adminad",
+      "ads-admin",
+      "adsadmin",
       "secret-admin",
       "ad-manager",
       "ads-manager",
       "console-admin",
       "admin-portal",
+      "adminportal",
+      "admin-panel",
+      "adminpanel",
     ].includes(clean)
   ) {
     return "admin-ads";
@@ -192,20 +202,37 @@ function resolveTab(val: string): ActiveTab | null {
 function getTabFromLocation(): ActiveTab {
   if (typeof window === "undefined") return "landing";
 
-  // 1. Query parameters: ?tool=... or ?tab=... or ?admin=true
+  // 1. Query parameters: ?admin, ?admin=true, ?admin-ads, ?ads=admin, ?tab=admin-ads
   const searchParams = new URLSearchParams(window.location.search);
-  if (searchParams.get("admin") === "true" || searchParams.get("ads") === "admin") {
+  if (
+    searchParams.has("admin-ads") ||
+    searchParams.has("admin") ||
+    searchParams.has("admin_ads") ||
+    searchParams.get("admin") === "true" ||
+    searchParams.get("ads") === "admin" ||
+    searchParams.get("ads") === "true" ||
+    searchParams.get("p") === "admin-ads" ||
+    searchParams.get("page") === "admin-ads" ||
+    searchParams.get("route") === "admin-ads" ||
+    searchParams.get("view") === "admin-ads"
+  ) {
     return "admin-ads";
   }
 
-  const param = searchParams.get("tool") || searchParams.get("tab");
+  const param =
+    searchParams.get("tool") ||
+    searchParams.get("tab") ||
+    searchParams.get("route") ||
+    searchParams.get("page") ||
+    searchParams.get("p") ||
+    searchParams.get("view");
   if (param) {
     const matched = resolveTab(param);
     if (matched) return matched;
   }
 
-  // 2. Hash routing: #link-generator, #/link-generator, etc.
-  const rawHash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
+  // 2. Hash routing: #admin-ads, #/admin-ads, #admin, #/admin, etc.
+  const rawHash = window.location.hash.replace(/^#\/?/, "").toLowerCase().trim();
   if (rawHash) {
     // Landing page anchor sections
     if (["tools", "workflow", "why-us", "faq"].includes(rawHash)) {
@@ -215,8 +242,8 @@ function getTabFromLocation(): ActiveTab {
     if (matched) return matched;
   }
 
-  // 3. Pathname routing: /link-generator, /admin-ads, etc.
-  const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  // 3. Pathname routing: /link-generator, /admin-ads, /admin, etc.
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase().trim();
   if (path) {
     const matched = resolveTab(path);
     if (matched) return matched;
@@ -397,6 +424,27 @@ export default function App() {
       window.removeEventListener("hashchange", handleUrlChange);
     };
   }, [activeTab]);
+
+  // Global key combination (Ctrl + Shift + A or Cmd + Shift + A) and window helper to access admin portal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.shiftKey && (e.key === "A" || e.key === "a")) {
+        e.preventDefault();
+        handleSelectTab("admin-ads", true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    if (typeof window !== "undefined") {
+      (window as any).openAdmin = () => {
+        handleSelectTab("admin-ads", true);
+      };
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleSelectTab]);
 
   // SECRET ADMIN PORTAL (Only accessed by direct URL /admin-ads)
   if (activeTab === "admin-ads") {

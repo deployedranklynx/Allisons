@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Lock,
   Eye,
+  EyeOff,
   MousePointerClick,
   Layers,
   Save,
@@ -65,8 +66,9 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
     "branding" | "seo" | "adsense" | "blog" | "ads" | "security"
   >("branding");
   const [activePlacementTab, setActivePlacementTab] = useState<AdPlacement>("top_banner");
-  const [adminPasskey, setAdminPasskey] = useState<string>("admin123");
+  const [adminPasskey, setAdminPasskey] = useState<string>("MEZ-Admin123");
   const [newPasskeyInput, setNewPasskeyInput] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
 
@@ -85,7 +87,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
 
       // 2. Server API Fallback
       const storedToken = sessionStorage.getItem("admin_auth_token") || "";
-      const currentKey = sessionStorage.getItem("admin_raw_passkey") || "admin123";
+      const currentKey = sessionStorage.getItem("admin_raw_passkey") || "MEZ-Admin123";
       const res = await fetch(`/api/admin/ads?passkey=${encodeURIComponent(currentKey)}`, {
         headers: {
           Authorization: `Bearer ${storedToken}`,
@@ -122,7 +124,18 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
     const enteredKey = passkeyInput.trim();
 
     try {
-      // 1. Firebase Cloud Verification
+      // 1. Immediate match for master requested passkey MEZ-Admin123
+      if (enteredKey === "MEZ-Admin123") {
+        sessionStorage.setItem("admin_auth_token", "master_admin_token");
+        sessionStorage.setItem("admin_raw_passkey", enteredKey);
+        setIsAuthenticated(true);
+        setPasskeyInput("");
+        await fetchAdminAds();
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Firebase Cloud Verification
       const isCloudValid = await verifyCloudAdminPasskey(enteredKey);
 
       if (isCloudValid) {
@@ -135,7 +148,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
         return;
       }
 
-      // 2. Server verification fallback
+      // 3. Server verification fallback
       const res = await fetch("/api/admin/verify-passkey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -157,8 +170,12 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
         }
       }
 
-      // 3. Built-in initial passkey fallback
-      if (enteredKey === "admin123") {
+      // 4. Built-in passkey fallback (MEZ-Admin123 or admin123 or active key)
+      if (
+        enteredKey === "MEZ-Admin123" ||
+        enteredKey === "admin123" ||
+        (adminPasskey && enteredKey === adminPasskey)
+      ) {
         sessionStorage.setItem("admin_auth_token", "master_admin_token");
         sessionStorage.setItem("admin_raw_passkey", enteredKey);
         setIsAuthenticated(true);
@@ -169,8 +186,12 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
 
       setAuthError("Invalid Admin Passkey. Please verify your password.");
     } catch {
-      // Even if network drops, check against default admin123
-      if (enteredKey === "admin123") {
+      // Even if network drops, check against MEZ-Admin123 or admin123
+      if (
+        enteredKey === "MEZ-Admin123" ||
+        enteredKey === "admin123" ||
+        (adminPasskey && enteredKey === adminPasskey)
+      ) {
         sessionStorage.setItem("admin_auth_token", "master_admin_token");
         sessionStorage.setItem("admin_raw_passkey", enteredKey);
         setIsAuthenticated(true);
@@ -280,17 +301,25 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
               </label>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={passkeyInput}
                   onChange={(e) => setPasskeyInput(e.target.value)}
-                  placeholder="Enter passkey (e.g. admin123)"
+                  placeholder="Enter passkey (e.g. MEZ-Admin123)"
                   required
-                  className="w-full px-3.5 py-2.5 bg-white border border-[#E9ECEF] rounded-lg text-sm text-[#2D3436] focus:outline-none focus:border-[#0984E3] focus:ring-1 focus:ring-[#0984E3]"
+                  autoFocus
+                  className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-[#E9ECEF] rounded-lg text-sm text-[#2D3436] focus:outline-none focus:border-[#0984E3] focus:ring-1 focus:ring-[#0984E3]"
                 />
-                <Lock className="w-4 h-4 text-gray-400 absolute right-3.5 top-3" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 cursor-pointer p-0.5"
+                  title={showPassword ? "Hide passkey" : "Show passkey"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
               <p className="text-[11px] text-[#636E72] mt-1.5">
-                Default initial passkey: <span className="font-mono font-bold text-[#0984E3]">admin123</span> (changeable inside).
+                Master admin passkey: <span className="font-mono font-bold text-[#0984E3]">MEZ-Admin123</span>
               </p>
             </div>
 
