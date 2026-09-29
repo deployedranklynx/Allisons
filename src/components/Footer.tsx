@@ -304,15 +304,6 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => 
             >
               Terms of Use
             </button>
-            <span>•</span>
-            <button
-              onClick={() => onSelectTab("admin-ads")}
-              className="hover:text-[#0984E3] transition-colors cursor-pointer inline-flex items-center gap-1 text-[#94A3B8] hover:text-[#0984E3]"
-              title="Admin Portal & Ads Manager"
-            >
-              <ShieldCheck className="w-3 h-3 text-[#0984E3]" />
-              <span>Admin Ads</span>
-            </button>
           </div>
         </div>
       </div>
