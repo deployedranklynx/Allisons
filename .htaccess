@@ -1,16 +1,18 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /
 
-  # If deployed with dist folder present in public_html, route everything into dist/
-  RewriteCond %{REQUEST_URI} !^/dist/
+  # Prevent infinite loop recursion on Hostinger LiteSpeed / Apache
+  RewriteCond %{ENV:REDIRECT_STATUS} !^$
+  RewriteRule ^ - [L]
+
+  # Case 1: If user uploaded entire repo with dist/ subfolder into public_html
   RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
+  RewriteCond %{REQUEST_URI} !^/dist/
   RewriteRule ^(.*)$ dist/$1 [L]
 
-  # Standard SPA fallback if files are directly placed in public_html
+  # Case 2: Standard SPA fallback
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{REQUEST_FILENAME} !-l
-  RewriteRule . /index.html [L]
+  RewriteRule . index.html [L]
 </IfModule>

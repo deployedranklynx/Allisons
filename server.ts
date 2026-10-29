@@ -1,14 +1,15 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+
+const appDir = typeof __dirname !== "undefined" ? __dirname : process.cwd();
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
@@ -1837,25 +1838,54 @@ app.post("/api/auth/upgrade-interest", (req, res) => {
 
 // Vite middleware & Production static serving
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+  const isProduction =
+    process.env.NODE_ENV === "production" ||
+    !fs.existsSync(path.join(process.cwd(), "src")) ||
+    fs.existsSync(path.join(appDir, "index.html"));
+
+  if (!isProduction) {
+    try {
+      // Lazy load Vite only in development so production bundle never crashes if vite isn't present
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn("Vite development server could not be started, falling back to static files:", e);
+    }
   } else {
-    const distPath = fs.existsSync(path.join(__dirname, "index.html"))
-      ? __dirname
+    const distPath = fs.existsSync(path.join(appDir, "index.html"))
+      ? appDir
       : path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        const indexPath = path.join(distPath, "index.html");
+        if (fs.existsSync(indexPath)) {
+          res.sendFile(indexPath);
+        } else {
+          res.send("RetoolMaster SEO Suite is running.");
+        }
+      });
+    }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`SEO Suite Server running on http://0.0.0.0:${PORT}`);
-  });
+  const portToListen = process.env.PORT || 3000;
+  if (isNaN(Number(portToListen))) {
+    // Hostinger / Passenger unix socket pipe
+    app.listen(portToListen, () => {
+      console.log(`SEO Suite Server running on socket ${portToListen}`);
+    });
+  } else {
+    const numericPort = Number(portToListen);
+    app.listen(numericPort, "0.0.0.0", () => {
+      console.log(`SEO Suite Server running on port ${numericPort}`);
+    });
+  }
 }
 
 startServer();
+
