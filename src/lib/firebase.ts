@@ -11,7 +11,14 @@ import {
   increment,
 } from "firebase/firestore";
 import { firebaseConfig } from "./firebaseConfig";
-import { BlogPost, SiteCustomization, DEFAULT_SITE_CUSTOMIZATION, DEFAULT_PAGE_SEO_CONFIGS } from "../types";
+import {
+  BlogPost,
+  SiteCustomization,
+  DEFAULT_SITE_CUSTOMIZATION,
+  DEFAULT_PAGE_SEO_CONFIGS,
+  ApiKeysConfig,
+  DEFAULT_API_KEYS_CONFIG,
+} from "../types";
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -522,5 +529,66 @@ export async function saveFirebaseSiteSettings(
     return false;
   }
 }
+
+// ---------------------------------------------------------------------------
+// SEO INTEGRATIONS & API KEYS (SEMRUSH, AHREFS, MOZ, GEMINI)
+// ---------------------------------------------------------------------------
+
+export async function ensureFirebaseApiKeysInitialized() {
+  try {
+    const docRef = doc(db, "adminSettings", "apiKeys");
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) {
+      await setDoc(docRef, {
+        ...DEFAULT_API_KEYS_CONFIG,
+        updatedAt: new Date().toISOString(),
+      });
+      console.log("[Firebase Cloud] Initialized default SEO API keys in Firestore.");
+    }
+  } catch (err) {
+    console.error("[Firebase Cloud] ensureFirebaseApiKeysInitialized error:", err);
+  }
+}
+
+export async function getFirebaseApiKeys(): Promise<ApiKeysConfig> {
+  try {
+    const docRef = doc(db, "adminSettings", "apiKeys");
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data() as Partial<ApiKeysConfig>;
+      return {
+        semrushApiKey: data.semrushApiKey || DEFAULT_API_KEYS_CONFIG.semrushApiKey,
+        ahrefsApiKey: data.ahrefsApiKey || DEFAULT_API_KEYS_CONFIG.ahrefsApiKey,
+        mozApiKey: data.mozApiKey || DEFAULT_API_KEYS_CONFIG.mozApiKey,
+        geminiApiKey: data.geminiApiKey || "",
+        updatedAt: data.updatedAt || new Date().toISOString(),
+      };
+    }
+  } catch (err) {
+    console.error("[Firebase Cloud] getFirebaseApiKeys error:", err);
+  }
+  return DEFAULT_API_KEYS_CONFIG;
+}
+
+export async function saveFirebaseApiKeys(
+  keys: Partial<ApiKeysConfig>
+): Promise<boolean> {
+  try {
+    const docRef = doc(db, "adminSettings", "apiKeys");
+    await setDoc(
+      docRef,
+      {
+        ...keys,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.error("[Firebase Cloud] saveFirebaseApiKeys error:", err);
+    return false;
+  }
+}
+
 
 

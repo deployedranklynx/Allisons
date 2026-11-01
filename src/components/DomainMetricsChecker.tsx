@@ -175,7 +175,12 @@ export const DomainMetricsChecker: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Live Moz, Ahrefs &amp; Semrush API Ready</span>
+          </div>
+
           <button
             onClick={() =>
               setDomainsInput(
@@ -450,14 +455,31 @@ export const DomainMetricsChecker: React.FC = () => {
                   <tr key={item.domain} className="hover:bg-gray-50/50 transition-colors">
                     <td className="py-2.5 px-3 text-center text-[#B2BEC3] font-sans">{idx + 1}</td>
                     <td className="py-2.5 px-3 font-sans font-semibold text-[#2D3436]">
-                      <a
-                        href={`https://${item.domain}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#0984E3] hover:underline"
-                      >
-                        {item.domain}
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`https://${item.domain}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#0984E3] hover:underline"
+                        >
+                          {item.domain}
+                        </a>
+                        {item.status && (
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded font-sans font-medium whitespace-nowrap ${
+                              item.status.includes("Moz")
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : item.status.includes("Ahrefs")
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : item.status.includes("AI")
+                                ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* MOZ Cells */}

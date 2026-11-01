@@ -36,6 +36,7 @@ import { AdminBlogManager } from "./AdminBlogManager";
 import { AdminBrandingManager } from "./AdminBrandingManager";
 import { AdminAdSenseManager } from "./AdminAdSenseManager";
 import { AdminSeoManager } from "./AdminSeoManager";
+import { AdminApiKeysManager } from "./AdminApiKeysManager";
 
 interface AdminAdsManagerProps {
   onReturnHome: () => void;
@@ -63,7 +64,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
   const [globalEnabled, setGlobalEnabled] = useState<boolean>(true);
   const [ads, setAds] = useState<AdItem[]>([]);
   const [adminPortalTab, setAdminPortalTab] = useState<
-    "branding" | "seo" | "adsense" | "blog" | "ads" | "security"
+    "branding" | "seo" | "api-keys" | "adsense" | "blog" | "ads" | "security"
   >("branding");
   const [activePlacementTab, setActivePlacementTab] = useState<AdPlacement>("top_banner");
   const [adminPasskey, setAdminPasskey] = useState<string>("MEZ-Admin123");
@@ -445,6 +446,27 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
           </button>
 
           <button
+            onClick={() => setAdminPortalTab("api-keys")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              adminPortalTab === "api-keys"
+                ? "bg-[#0984E3] text-white shadow-xs"
+                : "text-[#636E72] hover:bg-gray-100"
+            }`}
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>API Keys & Integrations</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                adminPortalTab === "api-keys"
+                  ? "bg-white/20 text-white"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              Moz / Ahrefs / Semrush
+            </span>
+          </button>
+
+          <button
             onClick={() => setAdminPortalTab("adsense")}
             className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               adminPortalTab === "adsense"
@@ -519,6 +541,9 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
         {adminPortalTab === "seo" && (
           <AdminSeoManager onSiteSettingsUpdated={onSiteSettingsUpdated} />
         )}
+
+        {/* Render SEO API Keys & Integrations Tab */}
+        {adminPortalTab === "api-keys" && <AdminApiKeysManager />}
 
         {/* Render AdSense & ads.txt Tab */}
         {adminPortalTab === "adsense" && (

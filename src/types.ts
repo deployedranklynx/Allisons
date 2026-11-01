@@ -544,6 +544,20 @@ export interface DomainMetricResult {
   status: string;
 }
 
+export interface ApiKeysConfig {
+  semrushApiKey: string;
+  ahrefsApiKey: string;
+  mozApiKey: string;
+  geminiApiKey?: string;
+  updatedAt?: string;
+}
+
+export const DEFAULT_API_KEYS_CONFIG: ApiKeysConfig = {
+  semrushApiKey: "semrtkn-pat--WOZZkf7SKad6GMLjm8-ZQ-l_9oWZsTtILJfNhglXbjB_j5nd5Oy1wc",
+  ahrefsApiKey: "hrCN8Sh5M7F4XLX0vgS2_wSeEqYhL491PMMb1w_v",
+  mozApiKey: "bW96c2NhcGUtMmdlYUR3cVZnazpVTlpCeTVZN25nYkJrSFhLUHFheVN3VTlnOGtmSjZWZw==",
+};
+
 export interface KeywordDifficultyResult {
   keyword: string;
   difficulty: number;
