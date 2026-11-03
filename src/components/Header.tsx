@@ -62,13 +62,23 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const theme = siteSettings?.theme;
+
   return (
-    <header className="h-16 bg-white border-b border-[#E9ECEF] flex items-center justify-between px-4 sm:px-8 shrink-0 z-10">
+    <header
+      className="h-16 border-b border-[#E9ECEF] flex items-center justify-between px-4 sm:px-8 shrink-0 z-10 transition-colors"
+      style={{
+        backgroundColor: theme?.headerBg || "#FFFFFF",
+        color: theme?.headerText || "#0F172A",
+        fontFamily: theme?.fontFamily || "inherit",
+      }}
+    >
       <div className="flex items-center gap-3 sm:gap-6 min-w-0">
         {/* Mobile Hamburger Toggle */}
         <button
           onClick={onOpenSidebar}
-          className="lg:hidden p-1.5 rounded-md text-[#636E72] hover:bg-gray-100 hover:text-[#2D3436] transition-colors"
+          className="lg:hidden p-1.5 rounded-md hover:opacity-80 transition-opacity"
+          style={{ color: theme?.headerText || "#636E72" }}
           title="Open Menu"
         >
           <Menu className="w-5 h-5" />
@@ -83,14 +93,20 @@ export const Header: React.FC<HeaderProps> = ({
               className="h-6 max-w-[80px] object-contain rounded"
             />
           ) : (
-            <div className="w-6 h-6 bg-[#0984E3] rounded flex items-center justify-center text-white font-bold text-xs shadow-xs">
+            <div
+              className="w-6 h-6 rounded flex items-center justify-center text-white font-bold text-xs shadow-xs"
+              style={{ backgroundColor: theme?.primaryColor || "#0984E3" }}
+            >
               {siteSettings?.headerLogoIconLetter || "R"}
             </div>
           )}
         </div>
 
         {/* Title */}
-        <h2 className="text-base sm:text-lg font-semibold text-[#2D3436] truncate">
+        <h2
+          className="text-base sm:text-lg font-semibold truncate"
+          style={{ color: theme?.headerText || "#2D3436" }}
+        >
           {getTabTitle(activeTab)}
         </h2>
 
@@ -172,7 +188,10 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-[#E9ECEF] hover:border-[#0984E3] text-xs text-[#2D3436] transition-all cursor-pointer shadow-2xs"
             title="View Account & Plan"
           >
-            <div className="w-6 h-6 rounded-full bg-[#0984E3] text-white flex items-center justify-center font-bold text-[11px]">
+            <div
+              className="w-6 h-6 rounded-full text-white flex items-center justify-center font-bold text-[11px]"
+              style={{ backgroundColor: theme?.primaryColor || "#0984E3" }}
+            >
               {user.name.slice(0, 1).toUpperCase()}
             </div>
             <div className="hidden sm:block text-left">
@@ -183,7 +202,8 @@ export const Header: React.FC<HeaderProps> = ({
         ) : (
           <button
             onClick={() => onOpenAuth && onOpenAuth("signup")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0984E3] hover:bg-[#0873C4] text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition-opacity hover:opacity-95 cursor-pointer shadow-2xs"
+            style={{ backgroundColor: theme?.primaryColor || "#0984E3" }}
           >
             <UserIcon className="w-3.5 h-3.5" />
             <span>Sign Up Free</span>

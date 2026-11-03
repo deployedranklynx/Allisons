@@ -19,12 +19,20 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => {
   const currentYear = new Date().getFullYear();
+  const theme = siteSettings?.theme;
 
   return (
-    <footer className="bg-white border-t border-[#E2E8F0] mt-auto">
+    <footer
+      className="border-t border-[#E2E8F0] mt-auto transition-colors"
+      style={{
+        backgroundColor: theme?.footerBg || "#FFFFFF",
+        color: theme?.footerText || "#64748B",
+        fontFamily: theme?.fontFamily || "inherit",
+      }}
+    >
       {/* Upper Footer: Brand, Navigation, Social */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 pb-8 border-b border-[#F1F5F9]">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 pb-8 border-b border-black/10">
           {/* Brand Column */}
           <div className="md:col-span-5 flex flex-col justify-between">
             <div>
@@ -45,15 +53,18 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab, siteSettings }) => 
                     className="h-8 max-w-[140px] object-contain rounded"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded bg-[#0984E3] flex items-center justify-center text-white font-bold text-sm shadow-xs">
+                  <div
+                    className="w-8 h-8 rounded flex items-center justify-center text-white font-bold text-sm shadow-xs"
+                    style={{ backgroundColor: theme?.primaryColor || "#0984E3" }}
+                  >
                     {siteSettings.headerLogoIconLetter || "R"}
                   </div>
                 )}
                 <div>
-                  <span className="font-bold text-base text-[#0F172A] tracking-tight">
+                  <span className="font-bold text-base tracking-tight">
                     {siteSettings.siteName || "RankLynx"}
                   </span>
-                  <span className="text-xs text-[#64748B] ml-2 font-medium">
+                  <span className="text-xs ml-2 font-medium opacity-80">
                     | {siteSettings.headerTagline || "Pro SEO Optimizer"}
                   </span>
                 </div>

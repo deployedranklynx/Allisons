@@ -183,6 +183,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
   ];
 
+  const theme = siteSettings?.theme;
+
   return (
     <>
       {/* Mobile Backdrop */}
@@ -195,9 +197,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Aside Container */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-[#E9ECEF] flex flex-col shrink-0 transition-transform duration-200 ease-in-out ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 border-r border-[#E9ECEF] flex flex-col shrink-0 transition-transform duration-200 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
+        style={{
+          backgroundColor: theme?.sidebarBg || "#FFFFFF",
+          color: theme?.sidebarText || "#334155",
+          fontFamily: theme?.fontFamily || "inherit",
+        }}
       >
         {/* Brand Header */}
         <div className="p-6 border-b border-[#E9ECEF] flex items-center justify-between">
@@ -213,15 +220,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }}
                 />
               ) : (
-                <div className="w-8 h-8 bg-[#0984E3] rounded flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0">
+                <div
+                  className="w-8 h-8 rounded flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0"
+                  style={{ backgroundColor: theme?.primaryColor || "#0984E3" }}
+                >
                   {siteSettings?.headerLogoIconLetter || "R"}
                 </div>
               )}
-              <h1 className="text-xl font-bold tracking-tight text-[#2D3436] truncate">
+              <h1 className="text-xl font-bold tracking-tight truncate">
                 {siteSettings?.siteName || "RankLynx"}
               </h1>
             </div>
-            <p className="text-[10px] uppercase tracking-widest text-[#B2BEC3] mt-1 font-semibold truncate">
+            <p className="text-[10px] uppercase tracking-widest opacity-60 mt-1 font-semibold truncate">
               {siteSettings?.headerTagline || "Pro SEO Optimizer"}
             </p>
           </div>
@@ -229,7 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Close button on mobile */}
           <button
             onClick={onClose}
-            className="lg:hidden p-1.5 rounded-lg text-[#636E72] hover:bg-gray-100"
+            className="lg:hidden p-1.5 rounded-lg hover:opacity-80"
           >
             <X className="w-5 h-5" />
           </button>
@@ -239,7 +249,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav className="flex-1 py-4 overflow-y-auto">
           {navSections.map((section, idx) => (
             <div key={section.group} className={idx > 0 ? "mt-6" : ""}>
-              <div className="px-6 mb-2 text-[11px] font-bold text-[#636E72] uppercase tracking-wider">
+              <div className="px-6 mb-2 text-[11px] font-bold uppercase tracking-wider opacity-60">
                 {section.group}
               </div>
               <div className="space-y-0.5">
@@ -253,10 +263,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         setActiveTab(item.id);
                         onClose();
                       }}
-                      className={`w-full flex items-center px-6 py-3 text-sm transition-colors text-left ${
+                      style={
                         isActive
-                          ? "bg-[#EBF5FF] text-[#0984E3] border-r-4 border-[#0984E3] font-semibold"
-                          : "text-[#636E72] hover:bg-gray-50 hover:text-[#2D3436] font-medium"
+                          ? {
+                              backgroundColor: `${theme?.primaryColor || "#0984E3"}15`,
+                              color: theme?.primaryColor || "#0984E3",
+                              borderRight: `4px solid ${theme?.primaryColor || "#0984E3"}`,
+                            }
+                          : undefined
+                      }
+                      className={`w-full flex items-center px-6 py-3 text-sm transition-colors text-left cursor-pointer ${
+                        isActive
+                          ? "font-semibold"
+                          : "opacity-80 hover:opacity-100 hover:bg-black/5 font-medium"
                       }`}
                     >
                       <span className="mr-3 text-base">{item.emoji}</span>

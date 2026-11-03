@@ -41,7 +41,54 @@ export interface BlogPost {
   publishedAt: string;
   updatedAt: string;
   views: number;
+
+  // On-Page SEO for rapid Google Indexing
+  seoTitle?: string;
+  seoDescription?: string;
+  focusKeyword?: string;
+  canonicalUrl?: string;
+  robotsDirective?: RobotsDirective;
+  ogImageUrl?: string;
+  schemaType?: "Article" | "BlogPosting" | "NewsArticle" | "TechArticle";
+  noIndex?: boolean;
+
+  // Multi-Network In-Article Ad Monetization
+  inArticleAdEnabled?: boolean;
+  inArticleAdProvider?: "adsense" | "medianet" | "ezoic" | "propeller" | "monetag" | "adsterra" | "custom";
+  inArticleAdHtml?: string;
+  adPlacementPosition?: "top" | "mid" | "bottom" | "all";
 }
+
+export interface SiteThemeConfig {
+  primaryColor: string; // e.g. #0984E3
+  primaryHoverColor: string; // e.g. #0770C2
+  accentColor: string; // e.g. #00CEC9
+  headerBg: string; // e.g. #ffffff
+  headerText: string; // e.g. #0f172a
+  sidebarBg: string; // e.g. #ffffff
+  sidebarText: string; // e.g. #334155
+  footerBg: string; // e.g. #0f172a
+  footerText: string; // e.g. #94a3b8
+  bodyBg: string; // e.g. #f8f9fa
+  fontFamily: "Inter" | "Poppins" | "Roboto" | "Plus Jakarta Sans" | "Outfit";
+  borderRadius: "rounded-none" | "rounded-md" | "rounded-lg" | "rounded-xl" | "rounded-2xl" | "rounded-full";
+}
+
+export const DEFAULT_SITE_THEME: SiteThemeConfig = {
+  primaryColor: "#0984E3",
+  primaryHoverColor: "#0770C2",
+  accentColor: "#00CEC9",
+  headerBg: "#FFFFFF",
+  headerText: "#0F172A",
+  sidebarBg: "#FFFFFF",
+  sidebarText: "#334155",
+  footerBg: "#0F172A",
+  footerText: "#94A3B8",
+  bodyBg: "#F8F9FA",
+  fontFamily: "Inter",
+  borderRadius: "rounded-xl",
+};
+
 
 export type AdPlacement = "top_banner" | "sidebar" | "tool_banner" | "footer_banner";
 export type AdType = "image_link" | "custom_html" | "native_text";
@@ -118,6 +165,17 @@ export interface SiteCustomization {
   customBodyCode: string;
   // Per-page On-Page SEO configurations
   pageSeo: Record<string, PageSeoConfig>;
+  // Global & Per-article Ad Monetization Settings (AdSense, Media.net, Ezoic, Monetag, PropellerAds, etc.)
+  articleAdsConfig?: {
+    enabled: boolean;
+    provider: "adsense" | "medianet" | "ezoic" | "propeller" | "monetag" | "adsterra" | "custom";
+    defaultTopAdHtml?: string;
+    defaultMidAdHtml?: string;
+    defaultBottomAdHtml?: string;
+    placementPosition: "top" | "mid" | "bottom" | "all";
+  };
+  // Dynamic Site Theme & Live Color Settings
+  theme?: SiteThemeConfig;
   updatedAt?: string;
 }
 
@@ -470,6 +528,15 @@ google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
   customHeadCode: "",
   customBodyCode: "",
   pageSeo: DEFAULT_PAGE_SEO_CONFIGS,
+  articleAdsConfig: {
+    enabled: true,
+    provider: "adsense",
+    placementPosition: "all",
+    defaultTopAdHtml: "",
+    defaultMidAdHtml: "",
+    defaultBottomAdHtml: "",
+  },
+  theme: DEFAULT_SITE_THEME,
 };
 
 export interface User {

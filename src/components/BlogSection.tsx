@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { BlogPost, AdItem } from "../types";
 import {
   getFirebaseBlogs,
@@ -20,12 +20,112 @@ import {
   ArrowUpRight,
   Sparkles,
   Bookmark,
+  DollarSign,
+  ShieldCheck,
 } from "lucide-react";
 
 interface BlogSectionProps {
   ads?: AdItem[];
   onOpenApp?: () => void;
   initialSlug?: string | null;
+}
+
+// Dynamic Multi-Platform Ad Container (executes AdSense, Media.net, Ezoic, Monetag, PropellerAds, or HTML)
+interface MultiNetworkAdSlotProps {
+  htmlCode?: string;
+  provider?: string;
+  fallbackAds?: AdItem[];
+  placementTitle?: string;
+}
+
+const MultiNetworkAdSlot: React.FC<MultiNetworkAdSlotProps> = ({
+  htmlCode,
+  provider = "adsense",
+  fallbackAds = [],
+  placementTitle = "Advertisement",
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || !htmlCode || !htmlCode.trim()) return;
+
+    // Clean container first
+    containerRef.current.innerHTML = "";
+
+    // Create wrapper
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = htmlCode.trim();
+
+    // Extract and re-inject script tags so browser executes them
+    const scripts = Array.from(wrapper.querySelectorAll("script"));
+    scripts.forEach((oldScript) => {
+      const newScript = document.createElement("script");
+      Array.from(oldScript.attributes).forEach((attr) => {
+        newScript.setAttribute(attr.name, attr.value);
+      });
+      newScript.textContent = oldScript.textContent;
+      oldScript.parentNode?.replaceChild(newScript, oldScript);
+    });
+
+    containerRef.current.appendChild(wrapper);
+
+    // If AdSense adsbygoogle exists, try triggering push safely
+    if (htmlCode.includes("adsbygoogle")) {
+      try {
+        ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+      } catch {
+        // Ignored if adsbygoogle already pushed
+      }
+    }
+  }, [htmlCode]);
+
+  // If no custom ad code was configured, fall back to global sponsored AdBanner
+  if (!htmlCode || !htmlCode.trim()) {
+    return (
+      <div className="my-8">
+        <AdBanner placement="tool_banner" ads={fallbackAds} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="my-8 p-4 rounded-2xl bg-gray-50/70 border border-gray-200 text-center overflow-hidden">
+      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-1">
+        <span className="flex items-center gap-1">
+          <DollarSign className="w-3 h-3 text-emerald-600" />
+          <span>{placementTitle}</span>
+        </span>
+        <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">
+          {provider?.toUpperCase() || "SPONSOR"}
+        </span>
+      </div>
+      <div ref={containerRef} className="flex justify-center items-center overflow-x-auto min-h-[90px]" />
+    </div>
+  );
+};
+
+// Helper to update SEO Meta and Canonical tags
+function setOrUpdateMetaTag(name: string, content: string, isProperty = false) {
+  if (!content) return;
+  const attr = isProperty ? "property" : "name";
+  let el = document.querySelector(`meta[${attr}="${name}"]`) as HTMLMetaElement;
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, name);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
+function setOrUpdateCanonical(url: string) {
+  if (!url) return;
+  let el = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", "canonical");
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", url);
 }
 
 export function BlogSection({
@@ -40,6 +140,16 @@ export function BlogSection({
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
+  // Helper to extract slug from current hash if formatted like #blog/slug-name
+  const detectHashSlug = (): string | null => {
+    if (typeof window === "undefined") return null;
+    const hash = window.location.hash.replace(/^#\/?/, "");
+    if (hash.startsWith("blog/")) {
+      return hash.replace("blog/", "").trim();
+    }
+    return null;
+  };
+
   // Load blog posts from Firebase Cloud
   useEffect(() => {
     async function loadPosts() {
@@ -51,9 +161,10 @@ export function BlogSection({
         const publishedOnly = posts.filter((p) => p.status === "published");
         setBlogs(publishedOnly);
 
-        if (initialSlug) {
+        const targetSlug = initialSlug || detectHashSlug();
+        if (targetSlug) {
           const matched = publishedOnly.find(
-            (p) => p.slug === initialSlug || p.id === initialSlug
+            (p) => p.slug === targetSlug || p.id === targetSlug
           );
           if (matched) {
             setSelectedPost(matched);
@@ -68,6 +179,99 @@ export function BlogSection({
     }
     loadPosts();
   }, [initialSlug]);
+
+  // Synchronize dynamic On-Page SEO meta tags whenever an article is selected or closed
+  useEffect(() => {
+    if (selectedPost) {
+      const siteBaseUrl =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : "https://retoolmaster.com";
+      const targetCanonical =
+        selectedPost.canonicalUrl || `${siteBaseUrl}/#blog/${selectedPost.slug}`;
+      const effectiveTitle = selectedPost.seoTitle || selectedPost.title;
+      const effectiveDesc = selectedPost.seoDescription || selectedPost.excerpt;
+      const effectiveKeywords =
+        selectedPost.focusKeyword || selectedPost.tags?.join(", ") || "seo tools";
+
+      // 1. Title
+      document.title = `${effectiveTitle} | RetoolMaster Classique Editorial`;
+
+      // 2. Standard Meta Tags
+      setOrUpdateMetaTag("description", effectiveDesc);
+      setOrUpdateMetaTag("keywords", effectiveKeywords);
+      setOrUpdateMetaTag(
+        "robots",
+        selectedPost.noIndex
+          ? "noindex, nofollow"
+          : selectedPost.robotsDirective || "index, follow"
+      );
+      if (selectedPost.author?.name) {
+        setOrUpdateMetaTag("author", selectedPost.author.name);
+      }
+
+      // 3. Canonical Tag
+      setOrUpdateCanonical(targetCanonical);
+
+      // 4. OpenGraph
+      setOrUpdateMetaTag("og:title", effectiveTitle, true);
+      setOrUpdateMetaTag("og:description", effectiveDesc, true);
+      setOrUpdateMetaTag("og:type", "article", true);
+      setOrUpdateMetaTag("og:url", targetCanonical, true);
+      if (selectedPost.featuredImage) {
+        setOrUpdateMetaTag("og:image", selectedPost.featuredImage, true);
+      }
+
+      // 5. Twitter Card
+      setOrUpdateMetaTag("twitter:card", "summary_large_image");
+      setOrUpdateMetaTag("twitter:title", effectiveTitle);
+      setOrUpdateMetaTag("twitter:description", effectiveDesc);
+      if (selectedPost.featuredImage) {
+        setOrUpdateMetaTag("twitter:image", selectedPost.featuredImage);
+      }
+
+      // 6. Schema.org Article / BlogPosting JSON-LD
+      const jsonLdId = "retoolmaster-article-jsonld";
+      let scriptEl = document.getElementById(jsonLdId) as HTMLScriptElement;
+      if (!scriptEl) {
+        scriptEl = document.createElement("script");
+        scriptEl.id = jsonLdId;
+        scriptEl.type = "application/ld+json";
+        document.head.appendChild(scriptEl);
+      }
+
+      const articleSchema = {
+        "@context": "https://schema.org",
+        "@type": selectedPost.schemaType || "BlogPosting",
+        headline: selectedPost.title,
+        description: effectiveDesc,
+        image: selectedPost.featuredImage,
+        author: {
+          "@type": "Person",
+          name: selectedPost.author.name,
+          jobTitle: selectedPost.author.role || "SEO Strategist",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "RetoolMaster",
+          url: siteBaseUrl,
+        },
+        datePublished: selectedPost.publishedAt,
+        dateModified: selectedPost.updatedAt || selectedPost.publishedAt,
+        mainEntityOfPage: {
+          "@type": "WebPage",
+          "@id": targetCanonical,
+        },
+      };
+
+      scriptEl.textContent = JSON.stringify(articleSchema, null, 2);
+    } else {
+      // Clean up article schema when navigating back to index
+      const scriptEl = document.getElementById("retoolmaster-article-jsonld");
+      if (scriptEl) scriptEl.remove();
+      document.title = "Classique Editorial Articles & Guides | RetoolMaster";
+    }
+  }, [selectedPost]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -103,7 +307,17 @@ export function BlogSection({
   const handleSelectArticle = (post: BlogPost) => {
     setSelectedPost(post);
     incrementFirebaseBlogViews(post.id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window !== "undefined") {
+      window.location.hash = `blog/${post.slug}`;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handleBackToIndex = () => {
+    setSelectedPost(null);
+    if (typeof window !== "undefined") {
+      window.location.hash = "blog";
+    }
   };
 
   const handleCopyLink = () => {
@@ -135,7 +349,28 @@ export function BlogSection({
     return matches.map((m) => m[1].replace(/<[^>]*>/g, ""));
   }, [selectedPost]);
 
-  // SINGLE ARTICLE CLASSICAL EDITORIAL VIEW
+  // Determine In-Article Ad Placements for Selected Post
+  const showTopAd =
+    selectedPost?.inArticleAdEnabled !== false &&
+    (selectedPost?.adPlacementPosition === "top" ||
+      selectedPost?.adPlacementPosition === "all" ||
+      !selectedPost?.adPlacementPosition);
+
+  const showMidAd =
+    selectedPost?.inArticleAdEnabled !== false &&
+    (selectedPost?.adPlacementPosition === "mid" ||
+      selectedPost?.adPlacementPosition === "all" ||
+      !selectedPost?.adPlacementPosition);
+
+  const showBottomAd =
+    selectedPost?.inArticleAdEnabled !== false &&
+    (selectedPost?.adPlacementPosition === "bottom" ||
+      selectedPost?.adPlacementPosition === "all" ||
+      !selectedPost?.adPlacementPosition);
+
+  // --------------------------------------------------------------------------
+  // VIEW: SINGLE ARTICLE CLASSICAL EDITORIAL VIEW
+  // --------------------------------------------------------------------------
   if (selectedPost) {
     const relatedPosts = blogs
       .filter((p) => p.id !== selectedPost.id)
@@ -150,7 +385,7 @@ export function BlogSection({
         <div className="border-b border-[#E2E8F0] bg-white sticky top-0 z-30 shadow-2xs">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
             <button
-              onClick={() => setSelectedPost(null)}
+              onClick={handleBackToIndex}
               className="flex items-center gap-2 text-xs font-semibold text-[#475569] hover:text-[#0984E3] transition-colors cursor-pointer group"
             >
               <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
@@ -158,6 +393,11 @@ export function BlogSection({
             </button>
 
             <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 hidden sm:inline-flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                <span>On-Page SEO Verified</span>
+              </span>
+
               <button
                 onClick={handleCopyLink}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] hover:bg-gray-50 text-xs font-semibold text-[#0F172A] transition-colors cursor-pointer"
@@ -181,6 +421,16 @@ export function BlogSection({
 
         {/* Main Article Container */}
         <article className="max-w-3xl mx-auto px-4 sm:px-6 py-12 lg:py-16">
+          {/* Top In-Article Ad Placement */}
+          {showTopAd && (
+            <MultiNetworkAdSlot
+              htmlCode={selectedPost.inArticleAdHtml}
+              provider={selectedPost.inArticleAdProvider || "adsense"}
+              fallbackAds={ads}
+              placementTitle="Header Sponsored Unit"
+            />
+          )}
+
           {/* Category & Date Metadata */}
           <div className="flex items-center gap-3 mb-4">
             <span className="px-3 py-1 rounded-full bg-blue-50 text-[#0984E3] font-bold text-xs uppercase tracking-wider border border-blue-100">
@@ -286,10 +536,15 @@ export function BlogSection({
             dangerouslySetInnerHTML={{ __html: selectedPost.content }}
           />
 
-          {/* Mid-Article Ad Placement */}
-          <div className="my-12">
-            <AdBanner placement="tool_banner" ads={ads} />
-          </div>
+          {/* Mid-Article Multi-Network Ad Placement */}
+          {showMidAd && (
+            <MultiNetworkAdSlot
+              htmlCode={selectedPost.inArticleAdHtml}
+              provider={selectedPost.inArticleAdProvider || "adsense"}
+              fallbackAds={ads}
+              placementTitle="In-Article Content Sponsor"
+            />
+          )}
 
           {/* Article Tags */}
           {selectedPost.tags && selectedPost.tags.length > 0 && (
@@ -307,6 +562,16 @@ export function BlogSection({
                 </span>
               ))}
             </div>
+          )}
+
+          {/* Bottom In-Article Ad Placement */}
+          {showBottomAd && (
+            <MultiNetworkAdSlot
+              htmlCode={selectedPost.inArticleAdHtml}
+              provider={selectedPost.inArticleAdProvider || "adsense"}
+              fallbackAds={ads}
+              placementTitle="Recommended Sponsor Unit"
+            />
           )}
 
           {/* Author Box */}
@@ -346,12 +611,12 @@ export function BlogSection({
                     Continue Reading
                   </h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    More tactical blueprints from the RankLynx editorial team.
+                    More tactical blueprints from the editorial team.
                   </p>
                 </div>
                 <button
-                  onClick={() => setSelectedPost(null)}
-                  className="text-xs font-semibold text-[#0984E3] hover:underline flex items-center gap-1"
+                  onClick={handleBackToIndex}
+                  className="text-xs font-semibold text-[#0984E3] hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <span>Browse all articles</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -401,131 +666,115 @@ export function BlogSection({
     );
   }
 
-  // DIRECTORY / CLASSICAL EDITORIAL INDEX VIEW
+  // --------------------------------------------------------------------------
+  // VIEW: EDITORIAL INDEX / CATALOG
+  // --------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-[#FCFCFD] text-[#1E293B]">
-      {/* Top Sponsor Announcement */}
-      <AdBanner placement="top_banner" ads={ads} />
-
-      {/* Editorial Classic Hero Banner */}
-      <div className="bg-white border-b border-[#E2E8F0] py-14 sm:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-[#0984E3] text-xs font-bold mb-4">
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>RankLynx Editorial Journal</span>
-          </div>
-          <h1 className="font-serif text-3xl sm:text-5xl font-bold tracking-tight text-[#0F172A] max-w-2xl mx-auto leading-tight">
-            The Masterclass Library of Advanced Search Engine Engineering
-          </h1>
-          <p className="mt-4 text-sm sm:text-base text-[#475569] max-w-xl mx-auto leading-relaxed">
-            In-depth architectural breakdowns, anchor balance mathematics, and
-            topical authority strategies crafted for technical webmasters.
-          </p>
-
-          {/* Search & Category Filter Bar */}
-          <div className="mt-8 max-w-xl mx-auto">
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search articles by keyword, anchor text, algorithm..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-xs bg-gray-50 border border-[#CBD5E1] rounded-xl focus:bg-white focus:outline-none focus:border-[#0984E3] focus:ring-2 focus:ring-[#0984E3]/15 transition-all"
-              />
+    <div className="space-y-12 animate-fadeIn pb-16">
+      {/* Editorial Hero Header */}
+      <div className="border-b border-[#E2E8F0] bg-white pb-12 pt-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#0984E3] mb-2">
+                <Sparkles className="w-4 h-4" />
+                <span>Classique Editorial & Search Intelligence</span>
+              </div>
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#0F172A]">
+                The Webmaster Dispatch
+              </h1>
+              <p className="mt-3 text-base text-[#475569] max-w-2xl leading-relaxed">
+                Analytical case studies, algorithm insights, and rigorous link-building blueprints written for modern search professionals.
+              </p>
             </div>
 
+            {onOpenApp && (
+              <button
+                onClick={onOpenApp}
+                className="px-5 py-2.5 rounded-xl bg-[#0984E3] text-white text-xs font-bold shadow-xs hover:bg-[#0770C2] transition-colors flex items-center gap-2 self-start md:self-auto cursor-pointer"
+              >
+                <span>Launch Link Suite</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Search & Category Filter Bar */}
+          <div className="mt-8 pt-6 border-t border-[#F1F5F9] flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Category Pills */}
-            <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4">
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
               {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     selectedCategory === cat
-                      ? "bg-[#0984E3] text-white shadow-xs"
-                      : "bg-white border border-[#E2E8F0] text-gray-600 hover:bg-gray-50"
+                      ? "bg-[#0984E3] text-white shadow-2xs"
+                      : "bg-gray-100 text-[#475569] hover:bg-gray-200"
                   }`}
                 >
                   {cat}
                 </button>
               ))}
             </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search editorial guides..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-[#E2E8F0] rounded-xl text-xs text-[#0F172A] focus:outline-none focus:border-[#0984E3] focus:bg-white"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Loading State */}
-        {isLoading && (
-          <div className="py-20 text-center">
-            <div className="w-8 h-8 border-3 border-[#0984E3] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-xs text-gray-500">Loading classical journal entries...</p>
+      {/* Main Grid Content */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        {isLoading ? (
+          <div className="py-24 text-center text-gray-400 font-serif">
+            Loading classical editorial archives...
           </div>
-        )}
-
-        {!isLoading && filteredBlogs.length === 0 && (
-          <div className="py-16 text-center bg-white rounded-2xl border border-[#E2E8F0] p-8 max-w-md mx-auto">
-            <BookOpen className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <h3 className="font-bold text-sm text-[#0F172A]">No Articles Found</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              No published articles matched your search query or selected category.
-            </p>
-            <button
-              onClick={() => {
-                setSearchQuery("");
-                setSelectedCategory("All");
-              }}
-              className="mt-4 px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-gray-700 rounded-lg transition-colors cursor-pointer"
-            >
-              Reset Filters
-            </button>
+        ) : filteredBlogs.length === 0 ? (
+          <div className="py-20 text-center bg-white rounded-2xl border border-gray-200 p-8">
+            <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <h3 className="text-sm font-bold text-gray-700">No articles found</h3>
+            <p className="text-xs text-gray-400 mt-1">Try adjusting your search query or category filter.</p>
           </div>
-        )}
-
-        {/* Featured Hero Article Spotlight (When viewing All and no search) */}
-        {!isLoading &&
-          selectedCategory === "All" &&
-          !searchQuery &&
-          featuredPost && (
-            <div className="mb-14">
+        ) : (
+          <div className="space-y-12">
+            {/* Featured Hero Article */}
+            {featuredPost && selectedCategory === "All" && !searchQuery && (
               <div
                 onClick={() => handleSelectArticle(featuredPost)}
-                className="group relative bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden hover:border-[#0984E3] hover:shadow-xl transition-all duration-300 grid grid-cols-1 lg:grid-cols-12 cursor-pointer"
+                className="group grid grid-cols-1 lg:grid-cols-12 gap-8 bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden hover:border-[#0984E3] hover:shadow-lg transition-all cursor-pointer p-6 sm:p-8"
               >
-                <div className="lg:col-span-7 h-64 sm:h-80 lg:h-auto overflow-hidden relative">
-                  <img
-                    src={featuredPost.featuredImage}
-                    alt={featuredPost.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-4 left-4">
-                    <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-xs text-[#0984E3] font-bold text-xs uppercase tracking-wider shadow-xs border border-white/50">
-                      ★ Featured Masterclass
-                    </span>
-                  </div>
-                </div>
-
-                <div className="lg:col-span-5 p-6 sm:p-8 lg:p-10 flex flex-col justify-between">
+                <div className="lg:col-span-7 flex flex-col justify-between order-2 lg:order-1">
                   <div>
-                    <div className="flex items-center gap-2 text-xs text-[#64748B] mb-2">
-                      <span className="font-semibold text-[#0984E3]">
-                        {featuredPost.category}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="px-2.5 py-1 rounded bg-blue-50 text-[#0984E3] text-[10px] font-bold uppercase tracking-wider border border-blue-100">
+                        Featured Blueprint
                       </span>
-                      <span>•</span>
-                      <span>{featuredPost.readTime}</span>
+                      <span className="text-gray-300">•</span>
+                      <span className="text-xs text-gray-400 font-medium">
+                        {formatDate(featuredPost.publishedAt)}
+                      </span>
                     </div>
 
-                    <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#0F172A] group-hover:text-[#0984E3] transition-colors leading-tight mb-4">
+                    <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0F172A] group-hover:text-[#0984E3] transition-colors leading-tight mb-4">
                       {featuredPost.title}
                     </h2>
 
-                    <p className="text-xs sm:text-sm text-[#475569] leading-relaxed line-clamp-3 mb-6">
+                    <p className="text-sm sm:text-base text-[#475569] leading-relaxed line-clamp-3 mb-6">
                       {featuredPost.excerpt}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-[#F1F5F9]">
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex items-center gap-2.5">
                       <img
                         src={
@@ -533,41 +782,43 @@ export function BlogSection({
                           "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
                         }
                         alt={featuredPost.author.name}
-                        className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                        className="w-8 h-8 rounded-full object-cover"
                       />
-                      <span className="text-xs font-semibold text-[#0F172A]">
+                      <span className="text-xs font-bold text-[#0F172A]">
                         {featuredPost.author.name}
                       </span>
                     </div>
 
                     <span className="text-xs font-bold text-[#0984E3] flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                      <span>Read Guide</span>
+                      <span>Read Complete Guide</span>
                       <ArrowUpRight className="w-4 h-4" />
                     </span>
                   </div>
                 </div>
+
+                <div className="lg:col-span-5 h-64 lg:h-auto rounded-xl overflow-hidden bg-gray-100 order-1 lg:order-2">
+                  <img
+                    src={featuredPost.featuredImage}
+                    alt={featuredPost.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-        {/* Article Grid */}
-        {!isLoading && otherBlogs.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-serif text-xl font-bold text-[#0F172A] flex items-center gap-2">
-                <span>Recent Publications</span>
-                <span className="text-xs font-sans font-normal text-gray-400">
-                  ({otherBlogs.length} articles)
-                </span>
-              </h3>
-            </div>
+            {/* Mid Banner Sponsor in Index */}
+            <AdBanner placement="top_banner" ads={ads} />
 
+            {/* Grid of Other Articles */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {otherBlogs.map((post) => (
+              {(selectedCategory === "All" && !searchQuery
+                ? otherBlogs
+                : filteredBlogs
+              ).map((post) => (
                 <article
                   key={post.id}
                   onClick={() => handleSelectArticle(post)}
-                  className="group bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden hover:border-[#0984E3] hover:shadow-lg transition-all duration-200 flex flex-col cursor-pointer"
+                  className="group flex flex-col bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden hover:border-[#0984E3] hover:shadow-md transition-all cursor-pointer"
                 >
                   <div className="h-48 overflow-hidden bg-gray-100 relative">
                     <img
@@ -575,46 +826,33 @@ export function BlogSection({
                       alt={post.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute top-3 left-3">
-                      <span className="px-2.5 py-0.5 rounded-full bg-white/90 backdrop-blur-xs text-[11px] font-bold text-[#0984E3] shadow-2xs border border-white/60">
-                        {post.category}
-                      </span>
-                    </div>
+                    <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full bg-white/90 backdrop-blur-xs text-[10px] font-bold text-[#0984E3]">
+                      {post.category}
+                    </span>
                   </div>
 
-                  <div className="p-5 flex-1 flex flex-col justify-between">
+                  <div className="p-6 flex-1 flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center gap-2 text-[11px] text-gray-400 mb-2">
+                      <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
                         <span>{formatDate(post.publishedAt)}</span>
                         <span>•</span>
                         <span>{post.readTime}</span>
                       </div>
 
-                      <h4 className="font-serif text-lg font-bold text-[#0F172A] group-hover:text-[#0984E3] transition-colors leading-snug line-clamp-2 mb-2">
+                      <h3 className="font-serif text-lg font-bold text-[#0F172A] group-hover:text-[#0984E3] transition-colors line-clamp-2 leading-snug mb-3">
                         {post.title}
-                      </h4>
+                      </h3>
 
-                      <p className="text-xs text-gray-600 line-clamp-3 leading-relaxed">
+                      <p className="text-xs text-[#64748B] line-clamp-3 leading-relaxed mb-4">
                         {post.excerpt}
                       </p>
                     </div>
 
-                    <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={
-                            post.author.avatar ||
-                            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-                          }
-                          alt={post.author.name}
-                          className="w-6 h-6 rounded-full object-cover border border-gray-200"
-                        />
-                        <span className="text-[11px] font-medium text-gray-700 truncate max-w-[110px]">
-                          {post.author.name}
-                        </span>
-                      </div>
-
-                      <span className="text-xs font-bold text-[#0984E3] flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                    <div className="pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
+                      <span className="font-semibold text-gray-600">
+                        {post.author.name}
+                      </span>
+                      <span className="font-bold text-[#0984E3] flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                         <span>Read</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </span>
@@ -625,11 +863,6 @@ export function BlogSection({
             </div>
           </div>
         )}
-
-        {/* In-Directory Sponsor Banner */}
-        <div className="mt-16">
-          <AdBanner placement="tool_banner" ads={ads} />
-        </div>
       </div>
     </div>
   );

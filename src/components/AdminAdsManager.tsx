@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { AdminBlogManager } from "./AdminBlogManager";
 import { AdminBrandingManager } from "./AdminBrandingManager";
+import { AdminThemeManager } from "./AdminThemeManager";
 import { AdminAdSenseManager } from "./AdminAdSenseManager";
 import { AdminSeoManager } from "./AdminSeoManager";
 import { AdminApiKeysManager } from "./AdminApiKeysManager";
@@ -64,7 +65,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
   const [globalEnabled, setGlobalEnabled] = useState<boolean>(true);
   const [ads, setAds] = useState<AdItem[]>([]);
   const [adminPortalTab, setAdminPortalTab] = useState<
-    "branding" | "seo" | "api-keys" | "adsense" | "blog" | "ads" | "security"
+    "branding" | "theme" | "seo" | "api-keys" | "adsense" | "blog" | "ads" | "security"
   >("branding");
   const [activePlacementTab, setActivePlacementTab] = useState<AdPlacement>("top_banner");
   const [adminPasskey, setAdminPasskey] = useState<string>("MEZ-Admin123");
@@ -425,6 +426,27 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
           </button>
 
           <button
+            onClick={() => setAdminPortalTab("theme")}
+            className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              adminPortalTab === "theme"
+                ? "bg-[#0984E3] text-white shadow-xs"
+                : "text-[#636E72] hover:bg-gray-100"
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Custom Theme & Live Colors</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                adminPortalTab === "theme"
+                  ? "bg-white/20 text-white"
+                  : "bg-purple-100 text-purple-700"
+              }`}
+            >
+              Live Edit
+            </span>
+          </button>
+
+          <button
             onClick={() => setAdminPortalTab("seo")}
             className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               adminPortalTab === "seo"
@@ -535,6 +557,11 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({
         {/* Render Branding Manager Tab */}
         {adminPortalTab === "branding" && (
           <AdminBrandingManager onSiteSettingsUpdated={onSiteSettingsUpdated} />
+        )}
+
+        {/* Render Custom Theme & Live Colors Tab */}
+        {adminPortalTab === "theme" && (
+          <AdminThemeManager onSiteSettingsUpdated={onSiteSettingsUpdated} />
         )}
 
         {/* Render On-Page SEO Manager Tab */}

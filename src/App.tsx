@@ -41,6 +41,7 @@ import { ContactPage } from "./components/ContactPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
 import { TermsOfUsePage } from "./components/TermsOfUsePage";
 import { fetchCloudActiveAds, fetchCloudSiteSettings } from "./lib/cloudAds";
+import { applyThemeVariablesToDOM } from "./components/AdminThemeManager";
 
 // Map URL strings/aliases to canonical tabs
 function resolveTab(val: string): ActiveTab | null {
@@ -89,7 +90,11 @@ function resolveTab(val: string): ActiveTab | null {
   if (["rank-tracker", "rank", "rankings", "serp-tracker", "tracker", "serp"].includes(clean)) {
     return "rank-tracker";
   }
-  if (["blog", "blogs", "articles", "article", "journal", "editorial", "guides", "guide"].includes(clean)) {
+  if (
+    ["blog", "blogs", "articles", "article", "journal", "editorial", "guides", "guide"].includes(clean) ||
+    clean.startsWith("blog/") ||
+    clean.startsWith("articles/")
+  ) {
     return "blog";
   }
   if (["word-html", "wordhtml", "word-to-html", "html-to-word", "doc-to-html", "word-cleaner", "clean-word"].includes(clean)) {
@@ -362,6 +367,13 @@ export default function App() {
     fetchActiveAds();
     fetchSiteSettings();
   }, [fetchActiveAds, fetchSiteSettings]);
+
+  // Dynamically apply custom theme colors and font to DOM
+  useEffect(() => {
+    if (siteSettings?.theme) {
+      applyThemeVariablesToDOM(siteSettings.theme);
+    }
+  }, [siteSettings]);
 
   const handleOpenAuth = (mode: AuthModalMode = "signup") => {
     setAuthModalMode(mode);

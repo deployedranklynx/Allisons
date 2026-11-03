@@ -1801,14 +1801,16 @@ Sitemap: ${protocol}://${host}/sitemap.xml
   );
 });
 
-// Dynamic /sitemap.xml generator covering all on-page SEO tools and pages
+// Dynamic /sitemap.xml generator covering all on-page SEO tools and articles for Google indexing
+const BLOGS_FILE = path.join(API_DATA_DIR, "blogs.json");
+
 app.get("/sitemap.xml", (req, res) => {
-  const host = req.get("host") || "ranklynx.com";
+  const host = req.get("host") || "retoolmaster.com";
   const protocol = req.headers["x-forwarded-proto"] === "http" ? "http" : "https";
   const baseUrl = `${protocol}://${host}`;
   const today = new Date().toISOString().split("T")[0];
 
-  const pages = [
+  const staticPages: Array<{ loc: string; priority: string; changefreq: string; lastmod?: string }> = [
     { loc: `${baseUrl}/`, priority: "1.0", changefreq: "daily" },
     { loc: `${baseUrl}/#link-generator`, priority: "0.9", changefreq: "weekly" },
     { loc: `${baseUrl}/#bulk-opener`, priority: "0.9", changefreq: "weekly" },
@@ -1816,17 +1818,67 @@ app.get("/sitemap.xml", (req, res) => {
     { loc: `${baseUrl}/#domain-metrics`, priority: "0.9", changefreq: "weekly" },
     { loc: `${baseUrl}/#keyword-difficulty`, priority: "0.9", changefreq: "weekly" },
     { loc: `${baseUrl}/#rank-tracker`, priority: "0.9", changefreq: "weekly" },
-    { loc: `${baseUrl}/#blog`, priority: "0.8", changefreq: "daily" },
+    { loc: `${baseUrl}/#meta-tag-analyzer`, priority: "0.9", changefreq: "weekly" },
+    { loc: `${baseUrl}/#xml-sitemap-generator`, priority: "0.9", changefreq: "weekly" },
+    { loc: `${baseUrl}/#bulk-url-checker`, priority: "0.9", changefreq: "weekly" },
+    { loc: `${baseUrl}/#word-html`, priority: "0.8", changefreq: "weekly" },
+    { loc: `${baseUrl}/#markdown-converter`, priority: "0.8", changefreq: "weekly" },
+    { loc: `${baseUrl}/#pdf-editor`, priority: "0.8", changefreq: "weekly" },
+    { loc: `${baseUrl}/#blog`, priority: "0.9", changefreq: "daily" },
   ];
 
+  // Published editorial articles for rapid Google bot indexing
+  const blogPages: Array<{ loc: string; priority: string; changefreq: string; lastmod?: string }> = [
+    { loc: `${baseUrl}/#blog/anchor-text-ratio-optimization-guide-2026`, priority: "0.8", changefreq: "weekly", lastmod: today },
+    { loc: `${baseUrl}/#blog/search-intent-and-topical-authority`, priority: "0.8", changefreq: "weekly", lastmod: today },
+  ];
+
+  // Try reading any custom published articles saved in server cache
+  try {
+    if (fs.existsSync(BLOGS_FILE)) {
+      const rawBlogs = JSON.parse(fs.readFileSync(BLOGS_FILE, "utf-8"));
+      if (Array.isArray(rawBlogs)) {
+        for (const b of rawBlogs) {
+          if (b.status === "published" && b.slug) {
+            const articleUrl = `${baseUrl}/#blog/${b.slug}`;
+            if (!blogPages.some((p) => p.loc === articleUrl)) {
+              blogPages.push({
+                loc: articleUrl,
+                priority: "0.8",
+                changefreq: "weekly",
+                lastmod: b.updatedAt ? b.updatedAt.split("T")[0] : today,
+              });
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
+  const allPages = [...staticPages, ...blogPages];
+
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
-  for (const page of pages) {
-    xml += `  <url>\n    <loc>${page.loc}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${page.changefreq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>\n`;
+  for (const page of allPages) {
+    xml += `  <url>\n    <loc>${page.loc}</loc>\n    <lastmod>${page.lastmod || today}</lastmod>\n    <changefreq>${page.changefreq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>\n`;
   }
   xml += `</urlset>`;
 
   res.type("application/xml; charset=utf-8");
   res.send(xml);
+});
+
+// Blog posts sync endpoint for server cache mirroring
+app.post("/api/blogs/sync", (req, res) => {
+  try {
+    const { blogs } = req.body;
+    if (Array.isArray(blogs)) {
+      fs.writeFileSync(BLOGS_FILE, JSON.stringify(blogs, null, 2), "utf-8");
+      return res.json({ success: true, count: blogs.length });
+    }
+  } catch (err: any) {
+    console.error("Error syncing blogs to server file:", err);
+  }
+  return res.status(400).json({ success: false });
 });
 
 // Public Site Settings API
