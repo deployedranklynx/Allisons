@@ -24,6 +24,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { cleanAndFormatArticleContent } from "../lib/articleFormatter";
+
 interface BlogSectionProps {
   ads?: AdItem[];
   onOpenApp?: () => void;
@@ -31,14 +33,14 @@ interface BlogSectionProps {
 }
 
 // Dynamic Multi-Platform Ad Container (executes AdSense, Media.net, Ezoic, Monetag, PropellerAds, or HTML)
-interface MultiNetworkAdSlotProps {
+export interface MultiNetworkAdSlotProps {
   htmlCode?: string;
   provider?: string;
   fallbackAds?: AdItem[];
   placementTitle?: string;
 }
 
-const MultiNetworkAdSlot: React.FC<MultiNetworkAdSlotProps> = ({
+export const MultiNetworkAdSlot: React.FC<MultiNetworkAdSlotProps> = ({
   htmlCode,
   provider = "adsense",
   fallbackAds = [],
@@ -340,14 +342,20 @@ export function BlogSection({
     }
   };
 
+  // Sanitize & format post content cleanly
+  const displayContent = useMemo(() => {
+    if (!selectedPost?.content) return "";
+    return cleanAndFormatArticleContent(selectedPost.content);
+  }, [selectedPost?.content]);
+
   // Extract H2 headings for Table of Contents
   const tableOfContents = useMemo(() => {
-    if (!selectedPost?.content) return [];
+    if (!displayContent) return [];
     const matches = Array.from(
-      selectedPost.content.matchAll(/<h2[^>]*>(.*?)<\/h2>/gi)
+      displayContent.matchAll(/<h2[^>]*>(.*?)<\/h2>/gi)
     );
     return matches.map((m) => m[1].replace(/<[^>]*>/g, ""));
-  }, [selectedPost]);
+  }, [displayContent]);
 
   // Determine In-Article Ad Placements for Selected Post
   const showTopAd =
@@ -523,17 +531,22 @@ export function BlogSection({
           {/* Main Classical Rich Text Body */}
           <div
             className="prose prose-slate max-w-none font-serif text-[17px] leading-[1.8] text-[#24292E] 
-            [&>h2]:font-sans [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-[#0F172A] [&>h2]:mt-10 [&>h2]:mb-4 [&>h2]:tracking-tight
-            [&>h3]:font-sans [&>h3]:text-xl [&>h3]:font-bold [&>h3]:text-[#1E293B] [&>h3]:mt-8 [&>h3]:mb-3
-            [&>p]:mb-6
-            [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:mb-6 [&>ul>li]:mb-2 [&>ul>li]:font-sans
-            [&>ol]:list-decimal [&>ol]:pl-6 [&>ol]:mb-6 [&>ol>li]:mb-2 [&>ol>li]:font-sans
-            [&>blockquote]:border-l-4 [&>blockquote]:border-[#0984E3] [&>blockquote]:pl-5 [&>blockquote]:italic [&>blockquote]:text-gray-700 [&>blockquote]:my-8 [&>blockquote]:bg-blue-50/30 [&>blockquote]:py-3 [&>blockquote]:rounded-r-lg
-            [&>pre]:bg-[#0F172A] [&>pre]:text-gray-100 [&>pre]:p-4 [&>pre]:rounded-xl [&>pre]:overflow-x-auto [&>pre]:my-6 [&>pre]:font-mono [&>pre]:text-xs
-            [&>code]:bg-gray-100 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:font-mono [&>code]:text-xs [&>code]:text-[#0984E3]
-            [&>figure]:my-8 [&>figure>img]:rounded-xl [&>figure>img]:border [&>figure>img]:border-gray-200 [&>figure>figcaption]:text-center [&>figure>figcaption]:text-xs [&>figure>figcaption]:text-gray-500 [&>figure>figcaption]:mt-2
+            [&_h2]:font-sans [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-[#0F172A] [&_h2]:mt-10 [&_h2]:mb-4 [&_h2]:tracking-tight
+            [&_h3]:font-sans [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-[#1E293B] [&_h3]:mt-8 [&_h3]:mb-3
+            [&_h4]:font-sans [&_h4]:text-lg [&_h4]:font-bold [&_h4]:text-[#334155] [&_h4]:mt-6 [&_h4]:mb-2
+            [&_p]:mb-6 [&_p]:leading-[1.85]
+            [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-6 [&_ul_li]:mb-2 [&_ul_li]:font-sans
+            [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-6 [&_ol_li]:mb-2 [&_ol_li]:font-sans
+            [&_blockquote]:border-l-4 [&_blockquote]:border-[#0984E3] [&_blockquote]:pl-5 [&_blockquote]:italic [&_blockquote]:text-gray-700 [&_blockquote]:my-8 [&_blockquote]:bg-blue-50/30 [&_blockquote]:py-3 [&_blockquote]:rounded-r-lg
+            [&_pre]:bg-[#0F172A] [&_pre]:text-gray-100 [&_pre]:p-4 [&_pre]:rounded-xl [&_pre]:overflow-x-auto [&_pre]:my-6 [&_pre]:font-mono [&_pre]:text-xs
+            [&_code]:bg-gray-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-xs [&_code]:text-[#0984E3]
+            [&_figure]:my-8 [&_figure_img]:rounded-xl [&_figure_img]:border [&_figure_img]:border-gray-200 [&_figure_figcaption]:text-center [&_figure_figcaption]:text-xs [&_figure_figcaption]:text-gray-500 [&_figure_figcaption]:mt-2
+            [&_a]:text-[#0984E3] [&_a]:underline [&_a]:font-medium hover:[&_a]:text-[#0873C4]
+            [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
+            [&_th]:bg-gray-100 [&_th]:border [&_th]:border-gray-300 [&_th]:p-3 [&_th]:text-left [&_th]:font-bold [&_th]:text-xs
+            [&_td]:border [&_td]:border-gray-200 [&_td]:p-3 [&_td]:text-sm
             "
-            dangerouslySetInnerHTML={{ __html: selectedPost.content }}
+            dangerouslySetInnerHTML={{ __html: displayContent }}
           />
 
           {/* Mid-Article Multi-Network Ad Placement */}

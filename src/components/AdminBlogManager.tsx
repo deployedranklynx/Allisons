@@ -7,6 +7,22 @@ import {
   ensureFirebaseBlogsInitialized,
 } from "../lib/firebase";
 import { RichTextEditor } from "./RichTextEditor";
+import { cleanAndFormatArticleContent } from "../lib/articleFormatter";
+import { MultiNetworkAdSlot } from "./BlogSection";
+
+const SAMPLE_ARTICLE_TEMPLATE = `<h2>Executive Overview</h2>
+<p>Write your detailed guide introduction here with your focus keyword...</p>
+
+<blockquote>"Strategic search optimization demands consistency and analytical rigor."</blockquote>
+
+<h3>Core Principles</h3>
+<ul>
+  <li><strong>Point 1:</strong> Detail key algorithmic factor</li>
+  <li><strong>Point 2:</strong> Detail execution blueprint</li>
+</ul>
+
+<h3>Conclusion & Strategic Implementation</h3>
+<p>Wrap up actionable recommendations for webmasters and digital marketers.</p>`;
 import {
   Plus,
   Edit,
@@ -149,8 +165,8 @@ export function AdminBlogManager() {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
 
-  // Editor Sub-tabs: content, seo, monetization
-  const [editorSubTab, setEditorSubTab] = useState<"content" | "seo" | "monetization">("content");
+  // Editor Sub-tabs: content, seo, monetization, preview
+  const [editorSubTab, setEditorSubTab] = useState<"content" | "seo" | "monetization" | "preview">("content");
   const [serpPreviewMode, setSerpPreviewMode] = useState<"desktop" | "mobile">("desktop");
 
   // Core Form state
@@ -219,9 +235,7 @@ export function AdminBlogManager() {
     setTitle("");
     setSlug("");
     setExcerpt("");
-    setContent(
-      `<h2>Executive Overview</h2>\n<p>Write your detailed guide introduction here with your focus keyword...</p>\n\n<blockquote>"Strategic search optimization demands consistency and analytical rigor."</blockquote>\n\n<h3>Core Principles</h3>\n<ul>\n  <li><strong>Point 1:</strong> Detail key algorithmic factor</li>\n  <li><strong>Point 2:</strong> Detail execution blueprint</li>\n</ul>\n\n<h3>Conclusion & Strategic Implementation</h3>\n<p>Wrap up actionable recommendations for webmasters and digital marketers.</p>`
-    );
+    setContent(""); // Clean canvas ready for fresh article paste
     setFeaturedImage(PRESET_FEATURED_IMAGES[0].url);
     setAuthorName("SEO Master");
     setAuthorRole("Senior Technical Director");
@@ -433,7 +447,8 @@ export function AdminBlogManager() {
       setSaveErrorMsg("Please enter an article title.");
       return;
     }
-    if (!content.trim()) {
+    const sanitizedContent = cleanAndFormatArticleContent(content.trim());
+    if (!sanitizedContent) {
       setSaveErrorMsg("Please provide article body content.");
       return;
     }
@@ -452,7 +467,7 @@ export function AdminBlogManager() {
       slug: cleanSlug,
       title: title.trim(),
       excerpt: excerpt.trim() || title.trim(),
-      content: content.trim(),
+      content: sanitizedContent,
       featuredImage:
         featuredImage.trim() ||
         "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
@@ -670,6 +685,19 @@ export function AdminBlogManager() {
               {inArticleAdEnabled ? inArticleAdProvider.toUpperCase() : "DISABLED"}
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setEditorSubTab("preview")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              editorSubTab === "preview"
+                ? "bg-[#0984E3] text-white shadow-xs"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <Eye className="w-4 h-4" />
+            <span>4. Live Reader Preview</span>
+          </button>
         </div>
 
         {/* Notifications */}
@@ -743,13 +771,37 @@ export function AdminBlogManager() {
 
               {/* RichText Article Content Area */}
               <div className="bg-white p-5 rounded-2xl border border-[#CBD5E1] shadow-xs">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Article Body (Easy RichText Editor)
-                  </label>
-                  <span className="text-[11px] text-gray-500">
-                    Formatting, Headings, Lists, Quotes & In-article Images
-                  </span>
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                      Article Body (RichText Editor)
+                    </label>
+                    <span className="text-[11px] text-gray-500">
+                      Universal Paste Support: Word, Google Docs, ChatGPT, Markdown & HTML
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!content.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => setContent(SAMPLE_ARTICLE_TEMPLATE)}
+                        className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 text-[#0984E3] border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1 cursor-pointer"
+                        title="Load structured outline template"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Insert Starter Outline</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditorSubTab("preview")}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center gap-1 cursor-pointer"
+                      title="See live article preview"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#0984E3]" />
+                      <span>Live Reader Preview</span>
+                    </button>
+                  </div>
                 </div>
                 <RichTextEditor
                   value={content}
@@ -1404,6 +1456,232 @@ export function AdminBlogManager() {
             </div>
           </div>
         )}
+        {/* ========================================================================= */}
+        {/* SUB-TAB 4: LIVE READER PREVIEW */}
+        {/* ========================================================================= */}
+        {editorSubTab === "preview" && (() => {
+          const previewFormatted = cleanAndFormatArticleContent(content || "");
+          const previewToc = Array.from(
+            previewFormatted.matchAll(/<h2[^>]*>(.*?)<\/h2>/gi)
+          ).map((m) => m[1].replace(/<[^>]*>/g, ""));
+
+          const showTopAd = inArticleAdEnabled && (adPlacementPosition === "top" || adPlacementPosition === "all");
+          const showMidAd = inArticleAdEnabled && (adPlacementPosition === "mid" || adPlacementPosition === "all");
+          const showBottomAd = inArticleAdEnabled && (adPlacementPosition === "bottom" || adPlacementPosition === "all");
+          const previewTags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+
+          return (
+            <div className="space-y-6">
+              {/* Preview Status & Controls Banner */}
+              <div className="bg-white p-4 rounded-2xl border border-[#CBD5E1] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0984E3] flex items-center justify-center shrink-0">
+                    <Eye className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-2">
+                      <span>Live Reader Experience Preview</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Exact 1:1 Rendering
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-gray-500">
+                      This is how your pasted article, typography, headings, and ad banners will appear to public readers and Google bot.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setEditorSubTab("content")}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    <span>Back to Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSavePost}
+                    disabled={isLoading}
+                    className="px-4 py-1.5 text-xs font-bold rounded-lg bg-[#0984E3] hover:bg-[#0873C4] text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{status === "published" ? "Publish Live" : "Save Draft"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Simulated Article Reader Container */}
+              <div className="bg-[#FCFCFD] rounded-2xl border border-[#CBD5E1] p-4 sm:p-8 lg:p-12 shadow-xs">
+                <article className="max-w-3xl mx-auto space-y-8">
+                  {/* Category & Meta Header */}
+                  <div className="space-y-4 text-center sm:text-left border-b border-gray-200 pb-8">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 text-xs">
+                      <span className="px-3 py-1 rounded-full font-bold bg-blue-50 text-[#0984E3] border border-blue-200">
+                        {category || "SEO Guides"}
+                      </span>
+                      <span className="text-gray-400">•</span>
+                      <span className="flex items-center gap-1 text-gray-500">
+                        <Clock className="w-3.5 h-3.5" />
+                        {readTimeEst}
+                      </span>
+                      <span className="text-gray-400">•</span>
+                      <span className="flex items-center gap-1 text-gray-500">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+
+                    <h1 className="text-2xl sm:text-4xl font-serif font-bold text-[#0F172A] leading-tight">
+                      {title || "Untitled Article Title"}
+                    </h1>
+
+                    {excerpt && (
+                      <p className="text-sm sm:text-base text-gray-600 font-serif italic leading-relaxed border-l-2 border-[#0984E3] pl-4">
+                        {excerpt}
+                      </p>
+                    )}
+
+                    {/* Author Meta */}
+                    <div className="flex items-center gap-3 pt-2">
+                      <img
+                        src={authorAvatar}
+                        alt={authorName}
+                        className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                      />
+                      <div>
+                        <div className="text-xs font-bold text-gray-900">{authorName}</div>
+                        <div className="text-[11px] text-gray-500">{authorRole}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Featured Header Image */}
+                  {featuredImage && (
+                    <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-xs">
+                      <img
+                        src={featuredImage}
+                        alt={title}
+                        className="w-full h-64 sm:h-96 object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {/* Table of Contents */}
+                  {previewToc.length > 0 && (
+                    <div className="p-6 rounded-2xl bg-blue-50/40 border border-blue-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BookOpen className="w-4 h-4 text-[#0984E3]" />
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900">
+                          Table of Contents
+                        </h3>
+                      </div>
+                      <ul className="space-y-2 text-xs">
+                        {previewToc.map((heading, i) => (
+                          <li key={i} className="flex items-start gap-2 text-[#334155]">
+                            <span className="text-[#0984E3] font-bold">0{i + 1}.</span>
+                            <span>{heading}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Top Ad Unit */}
+                  {showTopAd && (
+                    <MultiNetworkAdSlot
+                      htmlCode={inArticleAdHtml}
+                      provider={inArticleAdProvider}
+                      placementTitle="Header Sponsored Unit"
+                    />
+                  )}
+
+                  {/* Formatted Article Body */}
+                  {previewFormatted ? (
+                    <div
+                      className="prose prose-slate max-w-none font-serif text-[17px] leading-[1.8] text-[#24292E] 
+                      [&_h2]:font-sans [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-[#0F172A] [&_h2]:mt-10 [&_h2]:mb-4 [&_h2]:tracking-tight
+                      [&_h3]:font-sans [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-[#1E293B] [&_h3]:mt-8 [&_h3]:mb-3
+                      [&_h4]:font-sans [&_h4]:text-lg [&_h4]:font-bold [&_h4]:text-[#334155] [&_h4]:mt-6 [&_h4]:mb-2
+                      [&_p]:mb-6 [&_p]:leading-[1.85]
+                      [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-6 [&_ul_li]:mb-2 [&_ul_li]:font-sans
+                      [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-6 [&_ol_li]:mb-2 [&_ol_li]:font-sans
+                      [&_blockquote]:border-l-4 [&_blockquote]:border-[#0984E3] [&_blockquote]:pl-5 [&_blockquote]:italic [&_blockquote]:text-gray-700 [&_blockquote]:my-8 [&_blockquote]:bg-blue-50/30 [&_blockquote]:py-3 [&_blockquote]:rounded-r-lg
+                      [&_pre]:bg-[#0F172A] [&_pre]:text-gray-100 [&_pre]:p-4 [&_pre]:rounded-xl [&_pre]:overflow-x-auto [&_pre]:my-6 [&_pre]:font-mono [&_pre]:text-xs
+                      [&_code]:bg-gray-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-xs [&_code]:text-[#0984E3]
+                      [&_figure]:my-8 [&_figure_img]:rounded-xl [&_figure_img]:border [&_figure_img]:border-gray-200 [&_figure_figcaption]:text-center [&_figure_figcaption]:text-xs [&_figure_figcaption]:text-gray-500 [&_figure_figcaption]:mt-2
+                      [&_a]:text-[#0984E3] [&_a]:underline [&_a]:font-medium
+                      [&_table]:w-full [&_table]:border-collapse [&_table]:my-6
+                      [&_th]:bg-gray-100 [&_th]:border [&_th]:border-gray-300 [&_th]:p-3 [&_th]:text-left [&_th]:font-bold [&_th]:text-xs
+                      [&_td]:border [&_td]:border-gray-200 [&_td]:p-3 [&_td]:text-sm
+                      "
+                      dangerouslySetInnerHTML={{ __html: previewFormatted }}
+                    />
+                  ) : (
+                    <div className="p-8 text-center text-gray-400 border border-dashed border-gray-300 rounded-xl">
+                      Article body is currently empty. Switch back to "1. Article Content & Body" to paste or type your content.
+                    </div>
+                  )}
+
+                  {/* Mid Ad Unit */}
+                  {showMidAd && (
+                    <MultiNetworkAdSlot
+                      htmlCode={inArticleAdHtml}
+                      provider={inArticleAdProvider}
+                      placementTitle="In-Article Content Sponsor"
+                    />
+                  )}
+
+                  {/* Tags */}
+                  {previewTags.length > 0 && (
+                    <div className="pt-6 border-t border-gray-200 flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-500 flex items-center gap-1.5 mr-1">
+                        <Tag className="w-3.5 h-3.5" />
+                        Tags:
+                      </span>
+                      {previewTags.map((t) => (
+                        <span
+                          key={t}
+                          className="px-2.5 py-1 rounded-md bg-gray-100 text-gray-700 text-xs font-medium"
+                        >
+                          #{t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Bottom Ad Unit */}
+                  {showBottomAd && (
+                    <MultiNetworkAdSlot
+                      htmlCode={inArticleAdHtml}
+                      provider={inArticleAdProvider}
+                      placementTitle="Recommended Sponsor Unit"
+                    />
+                  )}
+
+                  {/* Author Bio Box */}
+                  <div className="mt-8 p-6 rounded-2xl bg-white border border-gray-200 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <img
+                      src={authorAvatar}
+                      alt={authorName}
+                      className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-xs"
+                    />
+                    <div className="space-y-1">
+                      <div className="text-xs uppercase font-bold text-[#0984E3] tracking-wider">
+                        Written by
+                      </div>
+                      <h4 className="text-base font-bold text-[#0F172A]">{authorName}</h4>
+                      <p className="text-xs text-[#64748B]">
+                        {authorRole} • Contributing analytical methodologies, backlink intelligence, and search architecture.
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }
